@@ -18,11 +18,11 @@ const Navbar = ({ onSearch, searchValue }) => {
                     </div>
 
                     {/* Navigation Links */}
-                    <div className="hidden md:flex items-center gap-6 text-sm font-medium text-gray-500">
+                    {/* <div className="hidden md:flex items-center gap-6 text-sm font-medium text-gray-500">
                         <a href="/movie-search/src/App.jsx" className="hover:text-indigo-600 transition p-3 px-6 bg-indigo-50 rounded-lg">หน้าแรก</a>
                         <a href="#" className="hover:text-indigo-600 transition p-3 px-6 bg-indigo-50 rounded-lg">รีวิวล่าสุด</a>
                         <a href="#" className="hover:text-indigo-600 transition p-3 px-6 bg-indigo-50 rounded-lg">จัดอันดับ</a>
-                    </div>
+                    </div> */}
 
                     {/* Search Bar */}
                     <div className="flex-1 max-w-md relative">
