@@ -36,6 +36,16 @@ async function fetchTmdbTitle(movieId) {
     return data?.title || data?.original_title || ""
 }
 
+function isLikelyEnglish(text) {
+    if (!text) return false
+    const letters = (text.match(/[A-Za-z]/g) || []).length
+    const nonLatin = (text.match(/[^\x00-\x7F]/g) || []).length
+    const total = text.length || 1
+    const letterRatio = letters / total
+    const nonLatinRatio = nonLatin / total
+    return letterRatio >= 0.3 && nonLatinRatio <= 0.2
+}
+
 router.get("/analyze/:movieId", async (req, res) => {
     try {
         const { movieId } = req.params
@@ -83,15 +93,25 @@ router.get("/analyze/:movieId", async (req, res) => {
             source: "TMDB",
             author: r.author,
             content: r.content,
-        }))
+        })).filter(r => isLikelyEnglish(r.content))
 
         const youtubeItems = youtubeComments.map(c => ({
             source: "YouTube",
             author: c.author,
             content: c.text,
-        }))
+        })).filter(r => isLikelyEnglish(r.content))
 
         const allItems = [...tmdbItems, ...youtubeItems]
+
+        if (allItems.length === 0) {
+            return res.json({
+                source,
+                totalReviews: 0,
+                summary: "no data",
+                stats: {},
+                reviews: []
+            })
+        }
 
         // 2) sentiment model
         const sentimentRes = await axios.post(
@@ -124,6 +144,9 @@ router.get("/analyze/:movieId", async (req, res) => {
                 confidence: sentiments[i].max_prob
             }
         })
+
+        const tmdbLabeled = merged.filter(r => r.source === "TMDB")
+        const youtubeLabeled = merged.filter(r => r.source === "YouTube")
 
         const total = merged.length
 
@@ -175,7 +198,9 @@ router.get("/analyze/:movieId", async (req, res) => {
                 youtubeVideoId,
                 youtubeQuery,
             },
-            reviews: merged
+            reviews: merged,
+            tmdbReviews: tmdbLabeled,
+            youtubeComments: youtubeLabeled
         })
 
     } catch (err) {
