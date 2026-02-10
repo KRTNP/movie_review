@@ -3,6 +3,35 @@ const axios = require("axios")
 const BASE_URL = "https://www.googleapis.com/youtube/v3"
 const API_KEY = process.env.YOUTUBE_API_KEY
 
+
+async function searchYoutubeVideos(query, maxResults = 1) {
+    if (!API_KEY) {
+        throw new Error("Missing YOUTUBE_API_KEY")
+    }
+    if (!query) {
+        return []
+    }
+
+    const res = await axios.get(`${BASE_URL}/search`, {
+        params: {
+            part: "snippet",
+            q: query,
+            type: "video",
+            maxResults: Math.min(Math.max(Number(maxResults) || 1, 1), 5),
+            key: API_KEY,
+        },
+        timeout: 10_000,
+    })
+
+    return (res.data.items || []).map(item => ({
+        videoId: item.id?.videoId,
+        title: item.snippet?.title,
+        channelTitle: item.snippet?.channelTitle,
+        publishedAt: item.snippet?.publishedAt,
+        thumbnails: item.snippet?.thumbnails,
+    })).filter(v => v.videoId)
+}
+
 async function fetchYoutubeComments(videoId, limit = 200) {
     if (!API_KEY) {
         throw new Error("Missing YOUTUBE_API_KEY")
@@ -44,6 +73,7 @@ async function fetchYoutubeComments(videoId, limit = 200) {
 
 module.exports = {
     fetchYoutubeComments,
+    searchYoutubeVideos,
     checkYoutubeApi: async function checkYoutubeApi(videoId) {
         if (!API_KEY) {
             throw new Error("Missing YOUTUBE_API_KEY")

@@ -43,9 +43,15 @@ router.get("/search", async (req, res) => {
             results: data.results.map(m => ({
                 id: m.id,
                 title: m.title,
+                original_title: m.original_title,
                 overview: m.overview,
                 release_date: m.release_date,
-                poster_path: m.poster_path
+                poster_path: m.poster_path,
+                backdrop_path: m.backdrop_path,
+                vote_average: m.vote_average,
+                vote_count: m.vote_count,
+                popularity: m.popularity,
+                genre_ids: m.genre_ids
             }))
         });
 

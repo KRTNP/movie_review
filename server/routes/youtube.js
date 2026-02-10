@@ -1,6 +1,7 @@
 const express = require("express")
 const {
     fetchYoutubeComments,
+    searchYoutubeVideos,
     checkYoutubeApi,
 } = require("../services/youtube.service")
 
@@ -84,6 +85,34 @@ router.get("/api/youtube/health", async (req, res) => {
     } catch (err) {
         const msg = err.message || "YouTube API check failed"
         res.status(500).json({ error: msg })
+    }
+})
+
+
+/**
+ * GET /api/youtube/search?query=xxx&max=1
+ */
+router.get("/api/youtube/search", async (req, res) => {
+    const { query, max = 1 } = req.query
+    if (!query) {
+        return res.status(400).json({ error: "query is required" })
+    }
+
+    try {
+        const results = await searchYoutubeVideos(query, Number(max))
+        res.json({
+            source: "youtube",
+            query,
+            count: results.length,
+            results,
+        })
+    } catch (err) {
+        const msg = err.message || "Failed to search youtube"
+        console.error(err.response?.data || msg)
+        if (msg.includes("Missing YOUTUBE_API_KEY")) {
+            return res.status(500).json({ error: msg })
+        }
+        res.status(500).json({ error: "Failed to search youtube" })
     }
 })
 
