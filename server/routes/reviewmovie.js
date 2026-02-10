@@ -2,6 +2,7 @@ const express = require("express")
 const router = express.Router()
 const axios = require("axios")
 const { searchYoutubeVideos, fetchYoutubeComments } = require("../services/youtube.service")
+const SENTIMENT_URL = process.env.SENTIMENT_API_URL || "https://mini-project-afyj.onrender.com/predict_batch"
 
 async function fetchTmdbReviews(movieId) {
     let page = 1
@@ -115,7 +116,7 @@ router.get("/analyze/:movieId", async (req, res) => {
 
         // 2) sentiment model
         const sentimentRes = await axios.post(
-            "http://127.0.0.1:8000/predict_batch",
+            SENTIMENT_URL,
             {
                 texts: allItems.map(r => r.content)
             },
@@ -208,9 +209,17 @@ router.get("/analyze/:movieId", async (req, res) => {
         if (err.response) {
             console.error("Response data:", err.response.data)
         }
-        if (err.code == "ECONNREFUSED") {
+        const upstreamStatus = err.response?.status
+        const isSentimentFailure =
+            err.code === "ECONNREFUSED" ||
+            err.code === "ECONNABORTED" ||
+            [502, 503, 504].includes(upstreamStatus) ||
+            String(err.config?.url || "").includes("predict_batch")
+
+        if (isSentimentFailure) {
             return res.status(502).json({ error: "Sentiment service unavailable" })
         }
+
         res.status(500).json({ error: "Analyze failed" })
     }
 })
