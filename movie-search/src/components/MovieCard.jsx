@@ -1,4 +1,4 @@
-import React from "react";
+import React, { memo } from "react";
 import { FaStar } from "react-icons/fa6";
 
 const MovieCard = ({ movie, onClick }) => {
@@ -35,13 +35,12 @@ const MovieCard = ({ movie, onClick }) => {
                 {typeof rating === "number" && (
                     <div className="absolute top-2 right-2 bg-yellow-400 text-black text-xs font-bold px-2 py-1 rounded shadow-md flex items-center gap-1">
                         <FaStar className="text-black/80" aria-hidden="true" />
-                        {/* แก้ไข 1: เปลี่ยนเครื่องหมายคำถามเป็นคำว่า "คะแนน" */}
                         คะแนน {rating.toFixed(1)}
                     </div>
                 )}
                 <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
                     <span className="text-white border border-white px-4 py-2 rounded-full text-sm font-medium hover:bg-white hover:text-black transition">
-                        {/* แก้ไข 2: เปลี่ยนเครื่องหมายคำถามเป็นข้อความที่สื่อความหมาย */}
+                        {/* แก้ไข: เปลี่ยนข้อความให้สื่อความหมาย */}
                         วิเคราะห์ด้วย AI
                     </span>
                 </div>
@@ -60,4 +59,4 @@ const MovieCard = ({ movie, onClick }) => {
     );
 };
 
-export default MovieCard;
+export default memo(MovieCard);

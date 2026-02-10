@@ -1,4 +1,4 @@
-import React from "react";
+import React, { memo } from "react";
 import { FaMagnifyingGlass } from "react-icons/fa6";
 
 const Navbar = ({ onSearch, searchValue }) => {
@@ -57,4 +57,4 @@ const Navbar = ({ onSearch, searchValue }) => {
     );
 };
 
-export default Navbar;
+export default memo(Navbar);

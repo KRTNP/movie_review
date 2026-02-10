@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, memo } from "react";
 import {
     FaCalendarDays,
     FaStar,
@@ -36,7 +36,7 @@ const MovieDetailModal = ({ movie, onClose }) => {
         };
 
         fetchAnalysis();
-    }, [movie]);
+    }, [movie, apiBase]);
 
     useEffect(() => {
         const fetchYoutubeComments = async () => {
@@ -55,6 +55,7 @@ const MovieDetailModal = ({ movie, onClose }) => {
                 const searchData = await searchRes.json();
                 const first = searchData.results?.[0];
                 if (!first?.videoId) {
+                    // แก้ไข: ข้อความไม่พบวิดีโอ
                     setYtError("ไม่พบวิดีโอตัวอย่างที่เกี่ยวข้อง");
                     return;
                 }
@@ -69,14 +70,15 @@ const MovieDetailModal = ({ movie, onClose }) => {
                 setYtComments(commentsData.comments || []);
             } catch (err) {
                 console.error("YouTube Error:", err);
-                setYtError("เกิดข้อผิดพลาดในการดึงข้อมูล YouTube");
+                // แก้ไข: ข้อความ error การดึงข้อมูล
+                setYtError("เกิดข้อผิดพลาดในการดึงข้อมูลจาก YouTube");
             } finally {
                 setYtLoading(false);
             }
         };
 
         fetchYoutubeComments();
-    }, [movie]);
+    }, [movie, apiBase]);
 
     if (!movie) return null;
 
@@ -101,6 +103,7 @@ const MovieDetailModal = ({ movie, onClose }) => {
     };
 
     const sentimentLabel = (sentiment) => {
+        // แก้ไข: ป้ายกำกับอารมณ์
         if (sentiment === "positive") return "เชิงบวก";
         if (sentiment === "negative") return "เชิงลบ";
         if (sentiment === "neutral") return "เป็นกลาง";
@@ -121,6 +124,7 @@ const MovieDetailModal = ({ movie, onClose }) => {
 
     const summaryLabel =
         {
+            // แก้ไข: สรุปผลอารมณ์
             positive: "เชิงบวก",
             negative: "เชิงลบ",
             neutral: "เป็นกลาง",
@@ -163,14 +167,17 @@ const MovieDetailModal = ({ movie, onClose }) => {
 
                     <p className="text-gray-500 text-sm mt-1 mb-2 flex items-center gap-2 flex-wrap">
                         <FaCalendarDays className="text-gray-400" aria-hidden="true" />
+                        {/* แก้ไข: วันที่ฉาย */}
                         <span>ฉายเมื่อ {movie.release_date || "-"}</span>
                         <span className="text-gray-400">|</span>
                         <FaStar className="text-yellow-500" aria-hidden="true" />
+                        {/* แก้ไข: คะแนน */}
                         <span>
                             คะแนน {typeof rating === "number" ? rating.toFixed(1) : "-"}
                         </span>
                     </p>
                     <p className="text-gray-500 text-sm mb-4">
+                        {/* แก้ไข: จำนวนโหวตและความนิยม */}
                         จำนวนโหวต {voteCount ?? "-"} | ความนิยม{" "}
                         {typeof popularity === "number" ? popularity.toFixed(0) : "-"}
                     </p>
@@ -181,11 +188,13 @@ const MovieDetailModal = ({ movie, onClose }) => {
 
                     <h3 className="text-lg font-bold text-gray-900 mb-4 flex items-center gap-2">
                         <FaChartPie className="text-indigo-600" aria-hidden="true" />
+                        {/* แก้ไข: หัวข้อการวิเคราะห์ */}
                         ผลการวิเคราะห์กระแสตอบรับ
                     </h3>
 
                     {loading ? (
                         <div className="py-8 text-center text-gray-500">
+                            {/* แก้ไข: กำลังโหลด */}
                             กำลังวิเคราะห์ข้อมูล...
                         </div>
                     ) : analysis ? (
@@ -195,6 +204,7 @@ const MovieDetailModal = ({ movie, onClose }) => {
                                     analysis.summary
                                 )}`}
                             >
+                                {/* แก้ไข: สรุปภาพรวม */}
                                 <span className="font-semibold">สรุปภาพรวม</span>
                                 <span className="font-bold uppercase">{summaryLabel}</span>
                             </div>
@@ -202,6 +212,7 @@ const MovieDetailModal = ({ movie, onClose }) => {
                             <div className="space-y-3">
                                 <div>
                                     <div className="flex justify-between text-xs mb-1">
+                                        {/* แก้ไข: เชิงบวก */}
                                         <span className="text-green-600">เชิงบวก</span>
                                         <span>{analysis.stats?.positivePercent}%</span>
                                     </div>
@@ -217,6 +228,7 @@ const MovieDetailModal = ({ movie, onClose }) => {
 
                                 <div>
                                     <div className="flex justify-between text-xs mb-1">
+                                        {/* แก้ไข: เชิงลบ */}
                                         <span className="text-red-600">เชิงลบ</span>
                                         <span>{analysis.stats?.negativePercent}%</span>
                                     </div>
@@ -234,6 +246,7 @@ const MovieDetailModal = ({ movie, onClose }) => {
                             {analysis.reviews && analysis.reviews.length > 0 && (
                                 <div className="pt-4 border-t">
                                     <h4 className="font-semibold text-gray-900 mb-2">
+                                        {/* แก้ไข: ตัวอย่างความคิดเห็น */}
                                         ตัวอย่างความคิดเห็น
                                     </h4>
 
@@ -270,6 +283,7 @@ const MovieDetailModal = ({ movie, onClose }) => {
                             <div className="pt-4 border-t">
                                 <h4 className="font-semibold text-gray-900 mb-2 flex items-center gap-2">
                                     <FaComments className="text-red-600" aria-hidden="true" />
+                                    {/* แก้ไข: ความคิดเห็น YouTube */}
                                     ความคิดเห็นจาก YouTube
                                 </h4>
                                 {ytLoading ? (
@@ -303,6 +317,7 @@ const MovieDetailModal = ({ movie, onClose }) => {
                         </div>
                     ) : (
                         <div className="text-center py-8 text-gray-400">
+                            {/* แก้ไข: กรณีวิเคราะห์ไม่ได้ */}
                             ไม่สามารถวิเคราะห์ข้อมูลได้ในขณะนี้
                         </div>
                     )}
@@ -312,4 +327,4 @@ const MovieDetailModal = ({ movie, onClose }) => {
     );
 };
 
-export default MovieDetailModal;
+export default memo(MovieDetailModal);
