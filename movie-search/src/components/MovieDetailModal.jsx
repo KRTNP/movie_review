@@ -21,7 +21,7 @@ const MovieDetailModal = ({
 
     const apiBase =
         import.meta.env.VITE_API_BASE?.replace(/\/+$/, "") ||
-        "http://localhost:8080";
+        "/api";
 
     useEffect(() => {
         const fetchAnalysis = async () => {

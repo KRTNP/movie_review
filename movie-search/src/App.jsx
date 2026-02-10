@@ -36,7 +36,7 @@ function App() {
 
   const apiBase =
     import.meta.env.VITE_API_BASE?.replace(/\/+$/, "") ||
-    "http://localhost:8080";
+    "/api";
 
   // ... (Functions เดิมทั้งหมด) ...
   const genreMap = useMemo(() => {
