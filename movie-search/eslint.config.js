@@ -1,16 +1,26 @@
-import js from '@eslint/js'
+import { createRequire } from 'node:module'
 import globals from 'globals'
 import reactHooks from 'eslint-plugin-react-hooks'
 import reactRefresh from 'eslint-plugin-react-refresh'
 import { defineConfig, globalIgnores } from 'eslint/config'
 
+const require = createRequire(import.meta.url)
+const { configs: jsConfigs } = require('@eslint/js')
+
 export default defineConfig([
   globalIgnores(['dist']),
   {
+    files: ['**/postcss.config.js', '**/tailwind.config.js'],
+    languageOptions: {
+      globals: globals.node,
+      sourceType: 'commonjs',
+    },
+  },
+  {
     files: ['**/*.{js,jsx}'],
     extends: [
-      js.configs.recommended,
-      reactHooks.configs.flat.recommended,
+      jsConfigs.recommended,
+      reactHooks.configs['recommended-latest'],
       reactRefresh.configs.vite,
     ],
     languageOptions: {
@@ -23,7 +33,10 @@ export default defineConfig([
       },
     },
     rules: {
-      'no-unused-vars': ['error', { varsIgnorePattern: '^[A-Z_]' }],
+      'no-unused-vars': [
+        'error',
+        { varsIgnorePattern: '^[A-Z_]', argsIgnorePattern: '^[A-Z_]' },
+      ],
     },
   },
 ])
