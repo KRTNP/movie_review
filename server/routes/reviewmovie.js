@@ -278,17 +278,50 @@ router.get("/analyze/:movieId", async (req, res) => {
             return res.json(emptyResponse)
         }
 
-        // 2) sentiment model
-        const sentiments = await analyzeSentiments(allItems.map(r => r.content))
-        if (!Array.isArray(sentiments) || sentiments.length === 0) {
-            const e = new Error("Sentiment service returned no results")
-            e.code = "SENTIMENT_EMPTY"
-            throw e
-        }
-        if (sentiments.length !== allItems.length) {
-            const e = new Error("Sentiment results length mismatch")
-            e.code = "SENTIMENT_MISMATCH"
-            throw e
+        // 2) sentiment model (fallback to comments-only if sentiment is unavailable)
+        let sentiments = []
+        try {
+            sentiments = await analyzeSentiments(allItems.map(r => r.content))
+            if (!Array.isArray(sentiments) || sentiments.length === 0) {
+                const e = new Error("Sentiment service returned no results")
+                e.code = "SENTIMENT_EMPTY"
+                throw e
+            }
+            if (sentiments.length !== allItems.length) {
+                const e = new Error("Sentiment results length mismatch")
+                e.code = "SENTIMENT_MISMATCH"
+                throw e
+            }
+        } catch (err) {
+            const upstreamStatus = err.response?.status
+            const isSentimentFailure =
+                err.code === "ECONNREFUSED" ||
+                err.code === "ECONNABORTED" ||
+                err.code === "SENTIMENT_EMPTY" ||
+                err.code === "SENTIMENT_MISMATCH" ||
+                [502, 503, 504].includes(upstreamStatus) ||
+                String(err.config?.url || "").includes("predict")
+
+            if (isSentimentFailure) {
+                const payload = {
+                    source,
+                    totalReviews: allItems.length,
+                    summary: "no model",
+                    stats: {},
+                    sources: {
+                        tmdbCount: tmdbItems.length,
+                        youtubeCount: youtubeItems.length,
+                        youtubeVideoId,
+                        youtubeQuery,
+                    },
+                    reviews: allItems,
+                    tmdbReviews: tmdbItems,
+                    youtubeComments: youtubeItems,
+                }
+                setCachedAnalysis(cacheKey, payload)
+                return res.json(payload)
+            }
+            throw err
         }
 
         // 3) merge + count
