@@ -1,20 +1,22 @@
-import { useState, useEffect, useCallback, useMemo } from "react";
-import { FaArrowLeft, FaArrowRight } from "react-icons/fa6";
+﻿import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import {
+    FaArrowLeft,
+    FaArrowRight,
+    FaBolt,
+    FaCheck,
+    FaCopy,
+    FaFlask,
+    FaRotate,
+    FaTriangleExclamation,
+} from "react-icons/fa6";
 import Navbar from "./components/Navbar";
 import MovieCard from "./components/MovieCard";
 import MovieDetailModal from "./components/MovieDetailModal";
 
-function App() {
-  // ... (State เดิมทั้งหมด) ...
-  const [query, setQuery] = useState("");
-  const [searchMode, setSearchMode] = useState("movie");
-  const [searchSuggestions, setSearchSuggestions] = useState([]);
-  const [searchLoading, setSearchLoading] = useState(false);
-  const [movies, setMovies] = useState([]);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState("");
-  const [genres, setGenres] = useState([]);
-  const [filters, setFilters] = useState({
+const API_BASE = (import.meta.env.VITE_API_BASE || "/api").replace(/\/+$/, "");
+const SUGGEST_LIMIT = 7;
+
+const INITIAL_FILTERS = {
     genre: "",
     year: "",
     rating: "",
@@ -22,430 +24,648 @@ function App() {
     language: "en",
     actor: "",
     sort: "popularity.desc",
-  });
-  const [randomMovie, setRandomMovie] = useState(null);
-  const [randomLoading, setRandomLoading] = useState(false);
-  const [randomError, setRandomError] = useState("");
-  const [randomOpen, setRandomOpen] = useState(false);
-  const [filtersOpen, setFiltersOpen] = useState(false);
+};
 
-  const [page, setPage] = useState(1);
-  const [totalPages, setTotalPages] = useState(0);
+const SAMPLE_TEXTS = [
+    {
+        id: "positive",
+        label: "เชิงบวก (Positive)",
+        text: "A smart, emotional blockbuster with great pacing, memorable characters, and an ending that really lands.",
+    },
+    {
+        id: "neutral",
+        label: "เป็นกลาง (Neutral)",
+        text: "The movie has a few strong scenes and decent performances, but overall it feels average and predictable.",
+    },
+    {
+        id: "negative",
+        label: "เชิงลบ (Negative)",
+        text: "Despite the hype, the script is weak, the editing is messy, and the characters are hard to care about.",
+    },
+];
 
-  const [selectedMovie, setSelectedMovie] = useState(null);
+function buildUrl(path, params = {}) {
+    const qs = new URLSearchParams();
+    Object.entries(params).forEach(([key, value]) => {
+        if (value !== "" && value !== null && value !== undefined) {
+            qs.set(key, String(value));
+        }
+    });
+    const query = qs.toString();
+    return `${API_BASE}${path}${query ? `?${query}` : ""}`;
+}
 
-  const apiBase =
-    import.meta.env.VITE_API_BASE?.replace(/\/+$/, "") ||
-    "/api";
+function normalizeMovie(m) {
+    return {
+        ...m,
+        rating: typeof m.vote_average === "number" ? m.vote_average : m.rating,
+    };
+}
 
-  // ... (Functions เดิมทั้งหมด) ...
-  const genreMap = useMemo(() => {
-    const map = {};
-    for (const g of genres) {
-      map[g.id] = g.name;
-    }
-    return map;
-  }, [genres]);
+function formatPercent(v) {
+    const n = Number(v);
+    if (Number.isNaN(n)) return "0.00";
+    return n.toFixed(2);
+}
 
-  const fetchMovies = useCallback(
-    async (searchTerm, pageNum = 1) => {
-      if (!searchTerm) return;
-      setLoading(true);
-      setError("");
+function sentimentTone(label) {
+    const l = String(label || "").toLowerCase();
+    if (l === "positive") return "bg-green-100 text-green-700 border-green-200";
+    if (l === "negative") return "bg-red-100 text-red-700 border-red-200";
+    return "bg-yellow-100 text-yellow-700 border-yellow-200";
+}
 
-      try {
-        const res = await fetch(
-          `${apiBase}/search?q=${encodeURIComponent(searchTerm)}&page=${pageNum}`
-        );
-        if (!res.ok) throw new Error("Server Error");
+function getThaiLabel(label) {
+    const l = String(label || "").toLowerCase();
+    if (l === "positive") return "เชิงบวก (POSITIVE)";
+    if (l === "negative") return "เชิงลบ (NEGATIVE)";
+    if (l === "neutral") return "เป็นกลาง (NEUTRAL)";
+    return label || "-";
+}
 
-        const data = await res.json();
-        const raw = data.results || [];
+function App() {
+    const [view, setView] = useState("home");
 
-        const minRating = filters.rating ? Number(filters.rating) : null;
-        const minPopularity = filters.popularity ? Number(filters.popularity) : null;
-        const year = filters.year ? String(filters.year) : null;
-        const genreId = filters.genre ? Number(filters.genre) : null;
-        const lang = filters.language || null;
+    const [movies, setMovies] = useState([]);
+    const [loading, setLoading] = useState(false);
+    const [error, setError] = useState("");
+    const [page, setPage] = useState(1);
+    const [totalPages, setTotalPages] = useState(1);
 
-        const filtered = raw.filter((m) => {
-          if (minRating !== null && Number(m.vote_average || 0) < minRating) return false;
-          if (minPopularity !== null && Number(m.popularity || 0) < minPopularity) return false;
-          if (year && m.release_date && !m.release_date.startsWith(year)) return false;
-          if (genreId && Array.isArray(m.genre_ids) && !m.genre_ids.includes(genreId)) return false;
-          if (lang && m.original_language && m.original_language !== lang) return false;
-          return true;
+    const [selectedMovie, setSelectedMovie] = useState(null);
+    const [showRandomActions, setShowRandomActions] = useState(false);
+
+    const [searchMode, setSearchMode] = useState("movie");
+    const [searchValue, setSearchValue] = useState("");
+    const [searchSuggestions, setSearchSuggestions] = useState([]);
+    const [searchLoading, setSearchLoading] = useState(false);
+    const suggestTimerRef = useRef(null);
+
+    const [filtersOpen, setFiltersOpen] = useState(false);
+    const [filters, setFilters] = useState(INITIAL_FILTERS);
+
+    const [genres, setGenres] = useState([]);
+
+    const [testerMode, setTesterMode] = useState("text");
+    const [testText, setTestText] = useState("");
+    const [headline, setHeadline] = useState("");
+    const [body, setBody] = useState("");
+    const [testLoading, setTestLoading] = useState(false);
+    const [testResult, setTestResult] = useState(null);
+    const [testError, setTestError] = useState("");
+
+    const [randomReviews, setRandomReviews] = useState([]);
+    const [reviewLoading, setReviewLoading] = useState(false);
+    const [reviewError, setReviewError] = useState("");
+    const [copiedId, setCopiedId] = useState("");
+
+    const genreMap = useMemo(() => {
+        const map = {};
+        genres.forEach((g) => {
+            map[g.id] = g.name;
         });
+        return map;
+    }, [genres]);
 
-        const sorted = [...filtered];
-        switch (filters.sort) {
-          case "vote_average.desc":
-            sorted.sort((a, b) => (b.vote_average || 0) - (a.vote_average || 0));
-            break;
-          case "vote_average.asc":
-            sorted.sort((a, b) => (a.vote_average || 0) - (b.vote_average || 0));
-            break;
-          case "release_date.desc":
-            sorted.sort((a, b) => (b.release_date || "").localeCompare(a.release_date || ""));
-            break;
-          case "release_date.asc":
-            sorted.sort((a, b) => (a.release_date || "").localeCompare(b.release_date || ""));
-            break;
-          case "popularity.asc":
-            sorted.sort((a, b) => (a.popularity || 0) - (b.popularity || 0));
-            break;
-          case "popularity.desc":
-          default:
-            sorted.sort((a, b) => (b.popularity || 0) - (a.popularity || 0));
-            break;
+    const fetchGenres = useCallback(async () => {
+        try {
+            const res = await fetch(buildUrl("/genres", { language: filters.language || "en" }));
+            if (!res.ok) throw new Error("Failed to fetch genres");
+            const data = await res.json();
+            setGenres(Array.isArray(data.genres) ? data.genres : []);
+        } catch {
+            setGenres([]);
         }
+    }, [filters.language]);
 
-        setMovies(sorted);
-        setTotalPages(data.totalPages || 0);
-      } catch (err) {
-        setError("เกิดข้อผิดพลาดในการเชื่อมต่อกับเซิร์ฟเวอร์");
-        console.error(err);
-      } finally {
-        setLoading(false);
-      }
-    },
-    [apiBase, filters]
-  );
+    const fetchMovies = useCallback(async () => {
+        setLoading(true);
+        setError("");
+        try {
+            const keyword = searchValue.trim();
+            const actorSearch = searchMode === "actor" && keyword;
+            const movieSearch = searchMode === "movie" && keyword;
 
-  const fetchDiscover = useCallback(
-    async (pageNum = 1) => {
-      setLoading(true);
-      setError("");
-      try {
-        const params = new URLSearchParams();
-        params.set("page", String(pageNum));
-        if (filters.genre) params.set("genre", filters.genre);
-        if (filters.year) params.set("year", filters.year);
-        if (filters.rating) params.set("rating", filters.rating);
-        if (filters.popularity) params.set("popularity", filters.popularity);
-        if (filters.language) params.set("language", filters.language);
-        if (filters.actor) params.set("actor", filters.actor);
-        if (filters.sort) params.set("sort", filters.sort);
+            let url;
+            if (movieSearch) {
+                url = buildUrl("/search", { q: keyword, page });
+            } else {
+                url = buildUrl("/discover", {
+                    page,
+                    genre: filters.genre,
+                    year: filters.year,
+                    rating: filters.rating,
+                    popularity: filters.popularity,
+                    language: filters.language,
+                    actor: actorSearch ? keyword : filters.actor,
+                    sort: filters.sort,
+                });
+            }
 
-        const res = await fetch(`${apiBase}/discover?${params.toString()}`);
-        if (!res.ok) throw new Error("Server Error");
-        const data = await res.json();
-        setMovies(data.results || []);
-        setTotalPages(data.totalPages || 0);
-      } catch (err) {
-        setError("เกิดข้อผิดพลาดในการเชื่อมต่อกับเซิร์ฟเวอร์");
-        console.error(err);
-      } finally {
-        setLoading(false);
-      }
-    },
-    [apiBase, filters]
-  );
+            const res = await fetch(url);
+            if (!res.ok) throw new Error("Server Error");
 
-  const handlePageChange = useCallback(
-    (newPage) => {
-      setPage((current) => {
-        if (newPage < 1 || newPage > totalPages) return current;
-        return newPage;
-      });
-      if (query) {
-        if (searchMode === "movie") {
-          fetchMovies(query, newPage);
-        } else {
-          fetchDiscover(newPage);
+            const data = await res.json();
+            const results = Array.isArray(data.results) ? data.results.map(normalizeMovie) : [];
+
+            setMovies(results);
+            setTotalPages(Math.max(1, Number(data.totalPages) || 1));
+        } catch (err) {
+            setMovies([]);
+            setError(err.message || "เกิดข้อผิดพลาดในการโหลดข้อมูล");
+        } finally {
+            setLoading(false);
         }
-      } else {
-        fetchDiscover(newPage);
-      }
-      window.scrollTo({ top: 0, behavior: "smooth" });
-    },
-    [fetchMovies, fetchDiscover, query, totalPages, searchMode]
-  );
+    }, [filters, page, searchMode, searchValue]);
 
-  const handleSelectMovie = useCallback((movie) => {
-    setSelectedMovie(movie);
-  }, []);
+    const fetchSuggestions = useCallback(
+        async (term, mode) => {
+            const q = term.trim();
+            if (!q) {
+                setSearchSuggestions([]);
+                return;
+            }
+            setSearchLoading(true);
+            try {
+                const url =
+                    mode === "actor"
+                        ? buildUrl("/actors", { query: q, page: 1 })
+                        : buildUrl("/search", { q, page: 1 });
+                const res = await fetch(url);
+                if (!res.ok) throw new Error("Failed suggestion");
+                const data = await res.json();
+                const items = Array.isArray(data.results) ? data.results : [];
 
-  const handleCloseModal = useCallback(() => {
-    setSelectedMovie(null);
-  }, []);
+                if (mode === "actor") {
+                    setSearchSuggestions(
+                        items.slice(0, SUGGEST_LIMIT).map((a) => ({
+                            id: `actor-${a.id}`,
+                            rawId: a.id,
+                            title: a.name,
+                            subtitle: a.known_for_department || "นักแสดง",
+                            profile_path: a.profile_path,
+                            value: a.name,
+                            type: "actor",
+                        }))
+                    );
+                } else {
+                    setSearchSuggestions(
+                        items.slice(0, SUGGEST_LIMIT).map((m) => ({
+                            id: `movie-${m.id}`,
+                            rawId: m.id,
+                            title: m.title,
+                            subtitle: m.release_date ? String(m.release_date).slice(0, 4) : "ภาพยนตร์",
+                            poster_path: m.poster_path,
+                            value: m.title,
+                            type: "movie",
+                        }))
+                    );
+                }
+            } catch {
+                setSearchSuggestions([]);
+            } finally {
+                setSearchLoading(false);
+            }
+        },
+        []
+    );
 
-  const handleToggleFilters = useCallback(() => {
-    setFiltersOpen((v) => !v);
-  }, []);
+    const fetchRandomReviews = useCallback(async () => {
+        setReviewLoading(true);
+        setReviewError("");
+        try {
+            const res = await fetch(buildUrl("/reviews/random", { count: 5 }));
+            if (!res.ok) throw new Error("Failed to fetch random reviews");
+            const data = await res.json();
+            setRandomReviews(Array.isArray(data.reviews) ? data.reviews : []);
+        } catch (err) {
+            setRandomReviews([]);
+            setReviewError(err.message || "ไม่สามารถโหลดรีวิวได้");
+        } finally {
+            setReviewLoading(false);
+        }
+    }, []);
 
-  const loadRandomMovie = useCallback(async () => {
-    setRandomLoading(true);
-    setRandomError("");
-    try {
-      const page = Math.floor(Math.random() * 20) + 1;
-      const params = new URLSearchParams();
-      params.set("page", String(page));
-      if (filters.language) params.set("language", filters.language);
-
-      const res = await fetch(`${apiBase}/discover?${params.toString()}`);
-      if (!res.ok) throw new Error("Server Error");
-      const data = await res.json();
-      const list = data.results || [];
-      if (list.length === 0) {
-        setRandomMovie(null);
-        setRandomError("ไม่พบข้อมูล");
-        return null;
-      }
-      const pick = list[Math.floor(Math.random() * list.length)];
-      setRandomMovie(pick || null);
-      return pick || null;
-    } catch (err) {
-      setRandomMovie(null);
-      setRandomError("ไม่สามารถสุ่มได้");
-      console.error(err);
-      return null;
-    } finally {
-      setRandomLoading(false);
-    }
-  }, [apiBase, filters.language]);
-
-  const handleRandomClick = useCallback(async () => {
-    const pick = await loadRandomMovie();
-    if (pick) setRandomOpen(true);
-  }, [loadRandomMovie]);
-
-  const handleRandomClose = useCallback(() => {
-    setRandomOpen(false);
-  }, []);
-
-  useEffect(() => {
-    fetchDiscover(1);
-  }, [fetchDiscover]);
-
-  useEffect(() => {
-    loadRandomMovie();
-  }, [loadRandomMovie]);
-
-  useEffect(() => {
-    const delayDebounceFn = setTimeout(() => {
-      if (query.trim()) {
+    const handleSearch = useCallback((value) => {
+        setSearchValue(value);
         setPage(1);
-        if (searchMode === "movie") {
-          fetchMovies(query, 1);
-        } else {
-          setFilters((f) => ({ ...f, actor: query }));
+    }, []);
+
+    const handlePickSuggestion = useCallback(
+        (item) => {
+            setSearchValue(item.value || item.title || "");
+            if (item.type === "actor") {
+                setSearchMode("actor");
+            } else {
+                setSearchMode("movie");
+            }
+            setPage(1);
+        },
+        []
+    );
+
+    const handlePageChange = useCallback(
+        (nextPage) => {
+            if (nextPage < 1 || nextPage > totalPages || nextPage === page) return;
+            setPage(nextPage);
+        },
+        [page, totalPages]
+    );
+
+    const openMovie = useCallback((movie) => {
+        setSelectedMovie(movie);
+        setShowRandomActions(false);
+    }, []);
+
+    const handleRandomMovie = useCallback(async () => {
+        try {
+            const randomPage = Math.floor(Math.random() * 100) + 1;
+            const url = buildUrl("/discover", {
+                page: randomPage,
+                genre: filters.genre,
+                year: filters.year,
+                rating: filters.rating,
+                popularity: filters.popularity,
+                language: filters.language,
+                sort: filters.sort,
+            });
+            const res = await fetch(url);
+            if (!res.ok) throw new Error("Random failed");
+            const data = await res.json();
+            const list = Array.isArray(data.results) ? data.results.map(normalizeMovie) : [];
+            if (!list.length) return;
+            const pick = list[Math.floor(Math.random() * list.length)];
+            setSelectedMovie(pick);
+            setShowRandomActions(true);
+        } catch {
+            // intentionally silent to avoid blocking normal browsing
         }
-      } else if (query === "") {
-        setPage(1);
-        fetchDiscover(1);
-      }
-    }, 800);
-    return () => clearTimeout(delayDebounceFn);
-  }, [query, fetchMovies, fetchDiscover, searchMode]);
+    }, [filters]);
 
-  useEffect(() => {
-    const fetchGenres = async () => {
-      try {
-        const res = await fetch(
-          `${apiBase}/genres?language=${encodeURIComponent(filters.language || "en")}`
-        );
-        if (!res.ok) throw new Error("Server Error");
-        const data = await res.json();
-        setGenres(data.genres || []);
-      } catch (err) {
-        console.error(err);
-      }
-    };
-    fetchGenres();
-  }, [apiBase, filters.language]);
+    const runPredict = useCallback(async () => {
+        const payloadText =
+            testerMode === "headline"
+                ? [headline.trim(), body.trim()].filter(Boolean).join("\n\n")
+                : testText.trim();
 
-  useEffect(() => {
-    if (query.trim()) return;
-    const delay = setTimeout(() => {
-      setPage(1);
-      fetchDiscover(1);
-    }, 500);
-    return () => clearTimeout(delay);
-  }, [filters, fetchDiscover, query]);
-
-  useEffect(() => {
-    if (!query.trim()) {
-      setSearchSuggestions([]);
-      return;
-    }
-    let isActive = true;
-    const delay = setTimeout(async () => {
-      setSearchLoading(true);
-      try {
-        if (searchMode === "movie") {
-          const res = await fetch(
-            `${apiBase}/search?q=${encodeURIComponent(query)}&page=1`
-          );
-          if (!res.ok) throw new Error("Server Error");
-          const data = await res.json();
-          if (isActive) {
-            setSearchSuggestions(
-              (data.results || []).slice(0, 6).map((m) => ({
-                id: m.id,
-                title: m.title,
-                subtitle: m.release_date || "",
-              }))
-            );
-          }
-        } else {
-          const res = await fetch(
-            `${apiBase}/actors?query=${encodeURIComponent(query)}&page=1`
-          );
-          if (!res.ok) throw new Error("Server Error");
-          const data = await res.json();
-          if (isActive) {
-            setSearchSuggestions(
-              (data.results || []).slice(0, 6).map((p) => ({
-                id: p.id,
-                title: p.name,
-                subtitle: p.known_for_department || "",
-                profile_path: p.profile_path || null,
-              }))
-            );
-          }
+        if (!payloadText) {
+            setTestError("กรุณากรอกข้อความก่อนทำการวิเคราะห์");
+            setTestResult(null);
+            return;
         }
-      } catch (err) {
-        if (isActive) setSearchSuggestions([]);
-        console.error(err);
-      } finally {
-        if (isActive) setSearchLoading(false);
-      }
-    }, 350);
-    return () => {
-      isActive = false;
-      clearTimeout(delay);
-    };
-  }, [apiBase, query, searchMode]);
 
-  const handlePickSuggestion = useCallback(
-    (item) => {
-      if (searchMode === "movie") {
-        setQuery(item.title);
-        fetchMovies(item.title, 1);
-      } else {
-        setQuery(item.title);
-        setFilters((f) => ({ ...f, actor: item.title }));
-      }
-      setSearchSuggestions([]);
-    },
-    [fetchMovies, searchMode]
-  );
+        setTestLoading(true);
+        setTestError("");
+        setTestResult(null);
 
-  return (
-    <div className="min-h-screen bg-white font-sans text-gray-900 selection:bg-black selection:text-white">
-      <Navbar
-        onSearch={setQuery}
-        searchValue={query}
-        searchMode={searchMode}
-        setSearchMode={setSearchMode}
-        searchSuggestions={searchSuggestions}
-        searchLoading={searchLoading}
-        onPickSuggestion={handlePickSuggestion}
-        genres={genres}
-        filters={filters}
-        setFilters={setFilters}
-        onRandom={handleRandomClick}
-        filtersOpen={filtersOpen}
-        onToggleFilters={handleToggleFilters}
-      />
+        try {
+            const res = await fetch(buildUrl("/sentiment/test"), {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ text: payloadText }),
+            });
 
-      <main className="w-full max-w-[1600px] mx-auto px-6 py-10">
-        <div className="mb-8 flex justify-between items-end">
-          <div>
-            <h1 className="text-4xl font-extrabold text-black tracking-tight flex items-center gap-3">
-              {query ? (
-                <>
-                  <span className="text-gray-400 font-light">ผลลัพธ์สำหรับ</span>
-                  <span className="border-b-2 border-black pb-1">"{query}"</span>
-                </>
-              ) : (
-                <>
-                  <span>ภาพยนตร์</span>
-                  <span className="text-gray-300">แนะนำ</span>
-                </>
-              )}
-            </h1>
-            <p className="text-sm font-medium text-gray-400 mt-3 uppercase tracking-widest">
-              หน้า {page} จาก {totalPages}
-            </p>
-          </div>
-        </div>
+            const data = await res.json();
+            if (!res.ok) {
+                throw new Error(data.error || "การวิเคราะห์ล้มเหลว");
+            }
 
-        {loading ? (
-          <div className="flex justify-center py-32">
-            <div className="w-10 h-10 border-4 border-gray-100 border-t-black rounded-full animate-spin"></div>
-          </div>
-        ) : error ? (
-          <div className="border border-red-100 bg-red-50 text-red-600 p-6 rounded-xl text-center">
-            {error}
-          </div>
-        ) : (
-          <>
-            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 2xl:grid-cols-6 gap-x-6 gap-y-10 mb-12">
-              {movies.length > 0 ? (
-                movies.map((movie) => (
-                  <MovieCard
-                    key={movie.id}
-                    movie={movie}
-                    onClick={handleSelectMovie}
-                    genreMap={genreMap}
-                  />
-                ))
-              ) : (
-                <div className="col-span-full flex flex-col items-center justify-center py-32 text-gray-400">
-                  <span className="text-6xl mb-4 opacity-20">?</span>
-                  <span className="text-lg">ไม่พบข้อมูลภาพยนตร์</span>
-                </div>
-              )}
-            </div>
+            setTestResult(data);
+        } catch (err) {
+            setTestError(err.message || "การวิเคราะห์ล้มเหลว");
+        } finally {
+            setTestLoading(false);
+        }
+    }, [body, headline, testText, testerMode]);
 
-            {movies.length > 0 && totalPages > 1 && (
-              <div className="flex justify-center items-center gap-6 py-10 border-t border-gray-100">
-                <button
-                  onClick={() => handlePageChange(page - 1)}
-                  disabled={page === 1}
-                  className="flex items-center gap-2 px-6 py-3 bg-white border border-gray-200 rounded-full hover:border-black hover:bg-black hover:text-white disabled:opacity-30 disabled:hover:bg-white disabled:hover:text-gray-900 disabled:hover:border-gray-200 transition-all duration-300"
-                >
-                  <FaArrowLeft className="text-xs" />
-                  <span className="text-sm font-bold">ก่อนหน้า</span>
-                </button>
-                <span className="text-sm font-mono text-gray-400">
-                  {page} / {totalPages}
-                </span>
-                <button
-                  onClick={() => handlePageChange(page + 1)}
-                  disabled={page === totalPages}
-                  className="flex items-center gap-2 px-6 py-3 bg-white border border-gray-200 rounded-full hover:border-black hover:bg-black hover:text-white disabled:opacity-30 disabled:hover:bg-white disabled:hover:text-gray-900 disabled:hover:border-gray-200 transition-all duration-300"
-                >
-                  <span className="text-sm font-bold">ถัดไป</span>
-                  <FaArrowRight className="text-xs" />
-                </button>
-              </div>
+    const applySample = useCallback(
+        (sample) => {
+            if (testerMode === "headline") {
+                setHeadline(`${sample.label} headline`);
+                setBody(sample.text);
+            } else {
+                setTestText(sample.text);
+            }
+            setTestError("");
+            setTestResult(null);
+        },
+        [testerMode]
+    );
+
+    const copyReview = useCallback(async (id, text) => {
+        try {
+            await navigator.clipboard.writeText(text);
+            setCopiedId(id);
+            window.setTimeout(() => setCopiedId(""), 1200);
+        } catch {
+            setCopiedId("");
+        }
+    }, []);
+
+    useEffect(() => {
+        fetchGenres();
+    }, [fetchGenres]);
+
+    useEffect(() => {
+        fetchMovies();
+    }, [fetchMovies]);
+
+    useEffect(() => {
+        if (view === "model" && randomReviews.length === 0 && !reviewLoading) {
+            fetchRandomReviews();
+        }
+    }, [fetchRandomReviews, randomReviews.length, reviewLoading, view]);
+
+    useEffect(() => {
+        if (suggestTimerRef.current) {
+            clearTimeout(suggestTimerRef.current);
+        }
+        suggestTimerRef.current = setTimeout(() => {
+            fetchSuggestions(searchValue, searchMode);
+        }, 300);
+
+        return () => {
+            if (suggestTimerRef.current) {
+                clearTimeout(suggestTimerRef.current);
+            }
+        };
+    }, [fetchSuggestions, searchMode, searchValue]);
+
+    return (
+        <div className="min-h-screen bg-gradient-to-b from-white to-gray-50 text-gray-900">
+            <Navbar
+                onSearch={handleSearch}
+                searchValue={searchValue}
+                searchMode={searchMode}
+                setSearchMode={setSearchMode}
+                searchSuggestions={searchSuggestions}
+                searchLoading={searchLoading}
+                onPickSuggestion={handlePickSuggestion}
+                genres={genres}
+                filters={filters}
+                setFilters={(next) => {
+                    setPage(1);
+                    setFilters(next);
+                }}
+                onRandom={handleRandomMovie}
+                filtersOpen={filtersOpen}
+                onToggleFilters={() => setFiltersOpen((v) => !v)}
+                view={view}
+                onChangeView={setView}
+            />
+
+            {view === "home" ? (
+                <main className="w-full max-w-[1600px] mx-auto px-6 py-8">
+                    <div className="flex items-center justify-between mb-6">
+                        <div>
+                            <h1 className="text-2xl md:text-3xl font-black tracking-tight">ค้นหาภาพยนตร์</h1>
+                            <p className="text-sm text-gray-500 mt-1">
+                                {searchValue.trim()
+                                    ? `ผลลัพธ์สำหรับ "${searchValue.trim()}"`
+                                    : "ค้นหาหนังตามตัวกรอง นักแสดง และการเรียงลำดับ"}
+                            </p>
+                        </div>
+                        <div className="text-xs text-gray-400 font-semibold">หน้า {page} / {totalPages}</div>
+                    </div>
+
+                    {loading ? (
+                        <div className="py-24 text-center text-gray-500">กำลังโหลดข้อมูล...</div>
+                    ) : error ? (
+                        <div className="py-16 border rounded-xl bg-red-50 text-red-700 border-red-200 text-center">
+                            {error}
+                        </div>
+                    ) : movies.length === 0 ? (
+                        <div className="py-16 border rounded-xl bg-gray-50 text-gray-500 border-gray-200 text-center">
+                            ไม่พบภาพยนตร์ตามเงื่อนไขที่กำหนด
+                        </div>
+                    ) : (
+                        <>
+                            <section className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-6">
+                                {movies.map((movie) => (
+                                    <MovieCard
+                                        key={movie.id}
+                                        movie={movie}
+                                        genreMap={genreMap}
+                                        onClick={openMovie}
+                                    />
+                                ))}
+                            </section>
+
+                            <div className="flex justify-center items-center gap-4 py-10 border-t border-gray-100 mt-8">
+                                <button
+                                    onClick={() => handlePageChange(page - 1)}
+                                    disabled={page === 1}
+                                    className="inline-flex items-center gap-2 px-4 py-2 rounded-full border border-gray-200 hover:border-gray-400 disabled:opacity-40 disabled:cursor-not-allowed"
+                                >
+                                    <FaArrowLeft className="text-xs" /> ก่อนหน้า
+                                </button>
+
+                                <span className="text-sm font-semibold text-gray-500">{page} / {totalPages}</span>
+
+                                <button
+                                    onClick={() => handlePageChange(page + 1)}
+                                    disabled={page >= totalPages}
+                                    className="inline-flex items-center gap-2 px-4 py-2 rounded-full border border-gray-200 hover:border-gray-400 disabled:opacity-40 disabled:cursor-not-allowed"
+                                >
+                                    ถัดไป <FaArrowRight className="text-xs" />
+                                </button>
+                            </div>
+                        </>
+                    )}
+                </main>
+            ) : (
+                <main className="w-full max-w-[1600px] mx-auto px-6 py-8">
+                    <div className="grid grid-cols-1 xl:grid-cols-[1.4fr_1fr] gap-6">
+                        <section className="bg-white border border-gray-200 rounded-2xl p-6 md:p-8 shadow-sm">
+                            <div className="flex items-center justify-between mb-6">
+                                <h2 className="text-xl font-black tracking-tight flex items-center gap-2">
+                                    <FaFlask /> ทดสอบโมเดล AI (Model Test)
+                                </h2>
+                                <div className="inline-flex rounded-full border border-gray-200 p-1 bg-gray-50">
+                                    <button
+                                        onClick={() => setTesterMode("text")}
+                                        className={`px-3 py-1.5 text-xs font-bold rounded-full ${testerMode === "text" ? "bg-black text-white" : "text-gray-500"}`}
+                                    >
+                                        ข้อความ
+                                    </button>
+                                    <button
+                                        onClick={() => setTesterMode("headline")}
+                                        className={`px-3 py-1.5 text-xs font-bold rounded-full ${testerMode === "headline" ? "bg-black text-white" : "text-gray-500"}`}
+                                    >
+                                        หัวข้อ + เนื้อหา
+                                    </button>
+                                </div>
+                            </div>
+
+                            <div className="space-y-4">
+                                {testerMode === "headline" ? (
+                                    <>
+                                        <input
+                                            type="text"
+                                            value={headline}
+                                            onChange={(e) => setHeadline(e.target.value)}
+                                            placeholder="หัวข้อเรื่อง (Headline)"
+                                            className="w-full rounded-xl border border-gray-200 px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-black/10"
+                                        />
+                                        <textarea
+                                            value={body}
+                                            onChange={(e) => setBody(e.target.value)}
+                                            placeholder="เนื้อหา (Body)"
+                                            rows={7}
+                                            className="w-full rounded-xl border border-gray-200 px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-black/10"
+                                        />
+                                    </>
+                                ) : (
+                                    <textarea
+                                        value={testText}
+                                        onChange={(e) => setTestText(e.target.value)}
+                                        placeholder="วางข้อความรีวิวที่นี่ เพื่อทดสอบการวิเคราะห์..."
+                                        rows={9}
+                                        className="w-full rounded-xl border border-gray-200 px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-black/10"
+                                    />
+                                )}
+
+                                <div className="flex flex-wrap gap-2">
+                                    {SAMPLE_TEXTS.map((sample) => (
+                                        <button
+                                            key={sample.id}
+                                            onClick={() => applySample(sample)}
+                                            className="px-3 py-1.5 text-xs font-semibold rounded-full border border-gray-200 hover:border-gray-400"
+                                        >
+                                            ตัวอย่าง {sample.label}
+                                        </button>
+                                    ))}
+                                </div>
+
+                                <button
+                                    onClick={runPredict}
+                                    disabled={testLoading}
+                                    className="w-full inline-flex justify-center items-center gap-2 px-4 py-3 rounded-xl bg-black text-white font-bold text-sm disabled:opacity-50"
+                                >
+                                    {testLoading ? "กำลังวิเคราะห์..." : "วิเคราะห์ (Predict)"}
+                                </button>
+                            </div>
+
+                            <div className="mt-8 space-y-4">
+                                {testError ? (
+                                    <div className="border border-red-200 bg-red-50 text-red-700 rounded-xl p-4 text-sm">
+                                        <div className="font-bold mb-1">เกิดข้อผิดพลาด</div>
+                                        <div>{testError}</div>
+                                    </div>
+                                ) : null}
+
+                                {testResult ? (
+                                    <div className="border border-gray-200 rounded-xl p-5 bg-gray-50 space-y-4">
+                                        <div className="flex flex-wrap items-center gap-2">
+                                            <span className={`px-3 py-1 rounded-full text-xs font-bold border ${sentimentTone(testResult.label)}`}>
+                                                {getThaiLabel(testResult.label)}
+                                            </span>
+                                            <span className="text-xs text-gray-600">ความแม่นยำ: {formatPercent((testResult.confidence || 0) * 100)}%</span>
+                                            <span className="text-xs text-gray-600">เวลาตอบสนอง: {testResult.latencyMs ?? "-"} ms</span>
+                                            <span className="text-xs text-gray-600">โมเดล: {testResult.modelVersion || "unknown"}</span>
+                                        </div>
+
+                                        <div className="text-sm text-gray-700 whitespace-pre-wrap break-words">
+                                            {testResult.text}
+                                        </div>
+
+                                        {testResult.probabilities ? (
+                                            <div className="space-y-2">
+                                                {Object.entries(testResult.probabilities).map(([k, v]) => (
+                                                    <div key={k}>
+                                                        <div className="flex justify-between text-xs text-gray-600 mb-1">
+                                                            <span>{k}</span>
+                                                            <span>{formatPercent(Number(v) * 100)}%</span>
+                                                        </div>
+                                                        <div className="h-2 bg-gray-200 rounded-full overflow-hidden">
+                                                            <div className="h-full bg-black" style={{ width: `${formatPercent(Number(v) * 100)}%` }} />
+                                                        </div>
+                                                    </div>
+                                                ))}
+                                            </div>
+                                        ) : null}
+                                    </div>
+                                ) : (
+                                    <div className="border border-dashed border-gray-200 rounded-xl p-5 text-sm text-gray-400">
+                                        ยังไม่มีผลการวิเคราะห์
+                                    </div>
+                                )}
+
+                                <div className="border border-gray-200 rounded-xl p-4 bg-white">
+                                    <div className="text-sm font-bold mb-2 flex items-center gap-2">
+                                        <FaTriangleExclamation className="text-amber-500" /> ตัวอย่างข้อผิดพลาดที่พบบ่อย
+                                    </div>
+                                    <ul className="text-xs text-gray-600 space-y-1">
+                                        <li>`400 Missing text` เมื่อไม่มีข้อความนำเข้า</li>
+                                        <li>`500 Sentiment test failed` เมื่อระบบโมเดลขัดข้อง</li>
+                                        <li>`timeout` เมื่อการเชื่อมต่อใช้เวลานานเกินไป</li>
+                                    </ul>
+                                </div>
+                            </div>
+                        </section>
+
+                        <aside className="bg-white border border-gray-200 rounded-2xl p-6 md:p-7 shadow-sm h-fit">
+                            <div className="flex items-center justify-between mb-4">
+                                <h3 className="font-black tracking-tight flex items-center gap-2">
+                                    <FaBolt /> ตัวอย่างรีวิวจาก TMDB
+                                </h3>
+                                <button
+                                    onClick={fetchRandomReviews}
+                                    className="inline-flex items-center gap-2 text-xs font-semibold px-3 py-1.5 rounded-full border border-gray-200 hover:border-gray-400"
+                                >
+                                    <FaRotate /> สุ่มใหม่
+                                </button>
+                            </div>
+
+                            {reviewLoading ? (
+                                <div className="py-6 text-sm text-gray-500">กำลังโหลดรีวิว...</div>
+                            ) : reviewError ? (
+                                <div className="py-6 text-sm text-red-600">{reviewError}</div>
+                            ) : randomReviews.length === 0 ? (
+                                <div className="py-6 text-sm text-gray-500">ไม่พบข้อมูลรีวิว</div>
+                            ) : (
+                                <ul className="space-y-4 max-h-[70vh] overflow-y-auto pr-1">
+                                    {randomReviews.map((review) => {
+                                        const id = `${review.movieId}-${review.author}`;
+                                        return (
+                                            <li key={id} className="border border-gray-200 rounded-xl p-4 bg-gray-50">
+                                                <div className="flex items-start justify-between gap-2 mb-2">
+                                                    <div>
+                                                        <div className="text-sm font-bold text-gray-900">{review.movieTitle}</div>
+                                                        <div className="text-xs text-gray-500">{review.author || "Unknown"}</div>
+                                                    </div>
+                                                    <button
+                                                        onClick={() => copyReview(id, review.content)}
+                                                        className="shrink-0 inline-flex items-center justify-center w-8 h-8 rounded-lg border border-gray-200 bg-white hover:border-gray-400"
+                                                        title="Copy review"
+                                                    >
+                                                        {copiedId === id ? <FaCheck className="text-green-600" /> : <FaCopy className="text-gray-600" />}
+                                                    </button>
+                                                </div>
+                                                <p className="text-sm text-gray-700 whitespace-pre-wrap break-words">
+                                                    {review.content}
+                                                </p>
+                                            </li>
+                                        );
+                                    })}
+                                </ul>
+                            )}
+                        </aside>
+                    </div>
+                </main>
             )}
-          </>
-        )}
-      </main>
 
-      {selectedMovie && (
-        <MovieDetailModal
-          movie={selectedMovie}
-          onClose={handleCloseModal}
-          genreMap={genreMap}
-        />
-      )}
-
-      {randomOpen && randomMovie && (
-        <MovieDetailModal
-          movie={randomMovie}
-          onClose={handleRandomClose}
-          showRandomActions
-          onRandomNext={loadRandomMovie}
-          genreMap={genreMap}
-        />
-      )}
-    </div>
-  );
+            {selectedMovie ? (
+                <MovieDetailModal
+                    movie={selectedMovie}
+                    onClose={() => setSelectedMovie(null)}
+                    showRandomActions={showRandomActions}
+                    onRandomNext={handleRandomMovie}
+                    genreMap={genreMap}
+                />
+            ) : null}
+        </div>
+    );
 }
 
 export default App;

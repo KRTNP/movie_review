@@ -3,7 +3,6 @@ import {
     FaCalendarDays,
     FaStar,
     FaChartPie,
-    FaQuoteRight,
     FaXmark,
     FaYoutube
 } from "react-icons/fa6";
@@ -19,6 +18,7 @@ const MovieDetailModal = ({
     const [loading, setLoading] = useState(true);
     const [analysisError, setAnalysisError] = useState("");
 
+    // ใช้ URL จาก Env หรือ Default เป็น /api
     const apiBase =
         import.meta.env.VITE_API_BASE?.replace(/\/+$/, "") ||
         "/api";
@@ -61,6 +61,20 @@ const MovieDetailModal = ({
         analysis.summary !== "no data" &&
         analysis.stats?.positivePercent !== undefined;
 
+    // ฟังก์ชันช่วยแปลงและเลือกสีของ Badge สรุปผล
+    const getSummaryConfig = (summary) => {
+        if (!summary) return { label: "-", color: "bg-gray-500" };
+        const s = summary.toLowerCase();
+
+        if (s.includes("positive")) return { label: "เชิงบวก (Positive)", color: "bg-green-600" };
+        if (s.includes("negative")) return { label: "เชิงลบ (Negative)", color: "bg-red-600" };
+        if (s.includes("neutral")) return { label: "เป็นกลาง (Neutral)", color: "bg-yellow-500" };
+
+        return { label: summary, color: "bg-black" }; // กรณีอื่นๆ
+    };
+
+    const summaryConfig = hasAnalysisData ? getSummaryConfig(analysis.summary) : {};
+
     return (
         <div
             className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-white/60 backdrop-blur-md"
@@ -72,7 +86,7 @@ const MovieDetailModal = ({
             >
                 <button
                     onClick={onClose}
-                    className="absolute top-4 right-4 z-10 bg-white/80 hover:bg-black hover:text-white text-black p-2 rounded-full transition-all duration-300"
+                    className="absolute top-4 right-4 z-10 bg-white/80 hover:bg-black hover:text-white text-black p-2 rounded-full transition-all duration-300 shadow-sm"
                 >
                     <FaXmark size={20} />
                 </button>
@@ -133,20 +147,30 @@ const MovieDetailModal = ({
                                 </div>
                             ) : hasAnalysisData ? (
                                 <div className="space-y-8">
-                                    {/* Sentiment Bar - Minimalist */}
+                                    {/* Sentiment Summary Badge */}
+                                    <div className="flex items-center justify-between bg-gray-50 border border-gray-100 rounded-lg px-4 py-3">
+                                        <span className="text-xs font-bold uppercase tracking-widest text-gray-500">
+                                            สรุปผล (Summary)
+                                        </span>
+                                        <span className={`text-xs font-black uppercase tracking-wider text-white px-3 py-1 rounded-full ${summaryConfig.color}`}>
+                                            {summaryConfig.label}
+                                        </span>
+                                    </div>
+
+                                    {/* Sentiment Bar Graph */}
                                     <div className="space-y-2">
                                         <div className="flex justify-between text-xs font-bold uppercase tracking-wider text-gray-500">
                                             <span>เชิงบวก (Positive)</span>
                                             <span>เชิงลบ (Negative)</span>
                                         </div>
-                                        <div className="h-4 w-full bg-gray-100 flex overflow-hidden">
+                                        <div className="h-4 w-full bg-gray-100 flex overflow-hidden rounded-full relative">
                                             <div
                                                 style={{ width: `${analysis.stats.positivePercent}%` }}
-                                                className="bg-black h-full"
+                                                className="bg-green-500 h-full flex items-center justify-start transition-all duration-1000 ease-out"
                                             />
                                             <div
                                                 style={{ width: `${analysis.stats.negativePercent}%` }}
-                                                className="bg-gray-300 h-full"
+                                                className="bg-red-500 h-full flex items-center justify-end transition-all duration-1000 ease-out absolute right-0 top-0"
                                             />
                                         </div>
                                         <div className="flex justify-between text-xs font-mono text-gray-400">
@@ -155,29 +179,38 @@ const MovieDetailModal = ({
                                         </div>
                                     </div>
 
-                                    {/* Comments */}
-                                    <div className="grid grid-cols-1 gap-4">
-                                        {analysis.reviews?.slice(0, 2).map((r, i) => (
-                                            <div key={i} className="bg-gray-50 p-5 rounded-lg border border-gray-100">
-                                                <p className="text-sm text-gray-700 italic mb-2">"{r.content}"</p>
-                                                <div className="text-xs text-gray-400 font-bold uppercase tracking-wider text-right">
-                                                    — {r.author || "User"}
+                                    {/* TMDB Reviews */}
+                                    {analysis.tmdbReviews && analysis.tmdbReviews.length > 0 && (
+                                        <div className={`grid grid-cols-1 gap-4 ${analysis.tmdbReviews.length > 2
+                                            ? "max-h-60 overflow-y-auto pr-2" // เพิ่ม Scrollbar หากมีรีวิวมากกว่า 2
+                                            : ""
+                                            }`}>
+                                            {analysis.tmdbReviews.map((r, i) => (
+                                                <div key={i} className="bg-gray-50 p-5 rounded-lg border border-gray-100">
+                                                    <p className="text-sm text-gray-700 italic mb-2 line-clamp-3 hover:line-clamp-none transition-all">
+                                                        "{r.content}"
+                                                    </p>
+                                                    <div className="text-xs text-gray-400 font-bold uppercase tracking-wider text-right">
+                                                        — {r.author || "User"}
+                                                    </div>
                                                 </div>
-                                            </div>
-                                        ))}
-                                    </div>
+                                            ))}
+                                        </div>
+                                    )}
 
-                                    {/* YouTube Section */}
+                                    {/* YouTube Comments */}
                                     {analysis.youtubeComments?.length > 0 && (
-                                        <div className="mt-6">
+                                        <div className="mt-6 border-t border-gray-50 pt-6">
                                             <h4 className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-4 flex items-center gap-2">
-                                                <FaYoutube className="text-gray-900" /> ความคิดเห็นจาก YouTube
+                                                <FaYoutube className="text-black" size={16} /> ความคิดเห็นจาก YouTube
                                             </h4>
-                                            <ul className="space-y-3 max-h-40 overflow-y-auto pr-2 custom-scrollbar">
-                                                {analysis.youtubeComments.slice(0, 5).map((c, i) => (
-                                                    <li key={i} className="text-sm text-gray-600 border-b border-gray-100 pb-2 last:border-0">
-                                                        <span className="font-bold text-gray-900 mr-2">{c.author}:</span>
-                                                        {c.text}
+                                            <ul className="space-y-3 max-h-56 overflow-y-auto pr-2 custom-scrollbar">
+                                                {analysis.youtubeComments.slice(0, 10).map((c, i) => (
+                                                    <li key={i} className="text-sm text-gray-600 border-b border-gray-100 pb-2 last:border-0 hover:bg-gray-50 p-2 rounded transition-colors">
+                                                        <div className="flex flex-col gap-1">
+                                                            <span className="font-bold text-xs text-gray-900">{c.author}:</span>
+                                                            <span className="text-gray-600">{c.text || c.content || ""}</span>
+                                                        </div>
                                                     </li>
                                                 ))}
                                             </ul>

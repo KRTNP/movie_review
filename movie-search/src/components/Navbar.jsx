@@ -1,4 +1,4 @@
-import React, { memo, useMemo } from "react";
+import React, { memo, useMemo, useState, useEffect, useRef } from "react";
 import {
     FaMagnifyingGlass,
     FaShuffle,
@@ -12,7 +12,9 @@ import {
     FaGlobe,
     FaUser,
     FaTag,
-    FaArrowUp
+    FaArrowUp,
+    FaFlask,
+    FaFilm
 } from "react-icons/fa6";
 
 const FilterInput = ({ label, icon: Icon, ...props }) => (
@@ -69,15 +71,40 @@ const FilterSelect = ({ label, icon: Icon, value, onChange, options, defaultOpti
 const Navbar = ({
     onSearch,
     searchValue,
+    searchMode,
+    setSearchMode,
+    searchSuggestions = [],
+    searchLoading,
+    onPickSuggestion,
     genres,
     filters,
     setFilters,
     onRandom,
     filtersOpen,
     onToggleFilters,
+    view,
+    onChangeView,
 }) => {
+    const [showSuggestions, setShowSuggestions] = useState(false);
+    const searchRef = useRef(null);
 
-    // --- Data Options (แปลไทย) ---
+    // ปิด Suggestions เมื่อคลิกที่อื่น
+    useEffect(() => {
+        const handleClickOutside = (event) => {
+            if (searchRef.current && !searchRef.current.contains(event.target)) {
+                setShowSuggestions(false);
+            }
+        };
+        document.addEventListener("mousedown", handleClickOutside);
+        return () => document.removeEventListener("mousedown", handleClickOutside);
+    }, []);
+
+    // เปิด Suggestions เมื่อมีข้อมูล
+    useEffect(() => {
+        if (searchSuggestions.length > 0) {
+            setShowSuggestions(true);
+        }
+    }, [searchSuggestions]);
 
     const yearOptions = useMemo(() => {
         const currentYear = new Date().getFullYear();
@@ -154,40 +181,122 @@ const Navbar = ({
                         </div>
                     </div>
 
-                    {/* Search Bar */}
-                    <div className="flex-1 max-w-xl relative group">
-                        <input
-                            type="text"
-                            placeholder="ค้นหาชื่อภาพยนตร์..."
-                            value={searchValue}
-                            onChange={(e) => onSearch(e.target.value)}
-                            className="w-full pl-11 pr-4 py-3 bg-gray-50 text-gray-900 placeholder-gray-400 border border-transparent rounded-full text-sm focus:outline-none focus:bg-white focus:ring-2 focus:ring-black/5 focus:border-gray-200 transition-all shadow-sm group-hover:bg-white group-hover:border-gray-200"
-                        />
-                        <FaMagnifyingGlass
-                            className="absolute left-4 top-3.5 text-gray-400 group-focus-within:text-black transition-colors"
-                            aria-hidden="true"
-                        />
-                        {searchValue && (
-                            <button
-                                onClick={() => onSearch("")}
-                                className="absolute right-3 top-2.5 p-1 text-gray-300 hover:text-red-500 transition-colors"
-                            >
-                                <FaXmark />
-                            </button>
+                    {/* Search Bar with Suggestions */}
+                    <div className="flex-1 max-w-xl relative group" ref={searchRef}>
+                        <div className="relative flex items-center w-full">
+                            {/* Mode Switcher */}
+                            <div className="absolute left-1 z-10 flex bg-gray-100 rounded-full p-1">
+                                <button
+                                    onClick={() => setSearchMode("movie")}
+                                    className={`p-1.5 rounded-full transition-all ${searchMode === "movie" ? "bg-white shadow-sm text-black" : "text-gray-400 hover:text-gray-600"}`}
+                                    title="ค้นหาหนัง"
+                                >
+                                    <FaFilm size={12} />
+                                </button>
+                                <button
+                                    onClick={() => setSearchMode("actor")}
+                                    className={`p-1.5 rounded-full transition-all ${searchMode === "actor" ? "bg-white shadow-sm text-black" : "text-gray-400 hover:text-gray-600"}`}
+                                    title="ค้นหาดารา"
+                                >
+                                    <FaUser size={12} />
+                                </button>
+                            </div>
+
+                            <input
+                                type="text"
+                                placeholder={searchMode === "movie" ? "ค้นหาหนัง..." : "ค้นหาดารา..."}
+                                value={searchValue}
+                                onChange={(e) => onSearch(e.target.value)}
+                                onFocus={() => {
+                                    if (searchSuggestions.length > 0) setShowSuggestions(true);
+                                }}
+                                className="w-full pl-20 pr-10 py-3 bg-gray-50 text-gray-900 placeholder-gray-400 border border-transparent rounded-full text-sm focus:outline-none focus:bg-white focus:ring-2 focus:ring-black/5 focus:border-gray-200 transition-all shadow-sm group-hover:bg-white group-hover:border-gray-200"
+                            />
+
+                            {/* Loading / Clear / Search Icon */}
+                            <div className="absolute right-4 flex items-center gap-2">
+                                {searchLoading ? (
+                                    <div className="w-4 h-4 border-2 border-gray-200 border-t-black rounded-full animate-spin"></div>
+                                ) : searchValue ? (
+                                    <button
+                                        onClick={() => onSearch("")}
+                                        className="text-gray-300 hover:text-red-500 transition-colors"
+                                    >
+                                        <FaXmark />
+                                    </button>
+                                ) : (
+                                    <FaMagnifyingGlass className="text-gray-400" />
+                                )}
+                            </div>
+                        </div>
+
+                        {/* Suggestions Dropdown */}
+                        {showSuggestions && searchSuggestions.length > 0 && (
+                            <div className="absolute top-full left-0 right-0 mt-2 bg-white rounded-xl shadow-xl border border-gray-100 overflow-hidden z-[60] animate-fade-in-up">
+                                <div className="p-2">
+                                    <div className="text-[10px] font-bold text-gray-400 uppercase tracking-wider px-3 py-1 mb-1">
+                                        ผลการค้นหาแนะนำ
+                                    </div>
+                                    {searchSuggestions.map((item) => (
+                                        <div
+                                            key={item.id}
+                                            onClick={() => {
+                                                onPickSuggestion(item);
+                                                setShowSuggestions(false);
+                                            }}
+                                            className="flex items-center gap-3 p-2 rounded-lg hover:bg-gray-50 cursor-pointer group transition-colors"
+                                        >
+                                            <div className="w-10 h-14 bg-gray-100 rounded overflow-hidden flex-shrink-0">
+                                                {item.profile_path || item.poster_path ? (
+                                                    <img
+                                                        src={`https://image.tmdb.org/t/p/w92${item.profile_path || item.poster_path}`}
+                                                        alt={item.title}
+                                                        className="w-full h-full object-cover"
+                                                    />
+                                                ) : (
+                                                    <div className="w-full h-full flex items-center justify-center text-gray-300">
+                                                        {searchMode === "movie" ? <FaFilm /> : <FaUser />}
+                                                    </div>
+                                                )}
+                                            </div>
+                                            <div className="flex flex-col">
+                                                <span className="text-sm font-bold text-gray-800 group-hover:text-black line-clamp-1">
+                                                    {item.title}
+                                                </span>
+                                                <span className="text-xs text-gray-400">
+                                                    {item.subtitle || "-"}
+                                                </span>
+                                            </div>
+                                        </div>
+                                    ))}
+                                </div>
+                            </div>
                         )}
                     </div>
 
                     {/* Action Buttons */}
                     <div className="flex gap-2">
                         <button
+                            onClick={() => onChangeView(view === "model" ? "home" : "model")}
+                            className={`inline-flex items-center gap-2 px-5 py-2.5 rounded-full text-sm font-bold tracking-wide transition-all duration-300 ${view === "model"
+                                ? "bg-black text-white shadow-lg shadow-black/20"
+                                : "bg-white border border-gray-200 text-gray-600 hover:border-black hover:text-black"
+                                }`}
+                        >
+                            <FaFlask aria-hidden="true" className={view === "model" ? "text-white" : "text-gray-400"} />
+                            <span className="hidden sm:inline">ทดสอบโมเดล</span>
+                            <span className="sm:hidden">Test</span>
+                        </button>
+
+                        <button
                             onClick={onToggleFilters}
                             className={`inline-flex items-center gap-2 px-5 py-2.5 rounded-full text-sm font-bold tracking-wide transition-all duration-300 ${filtersOpen
-                                    ? "bg-black text-white shadow-lg shadow-black/20"
-                                    : "bg-white border border-gray-200 text-gray-600 hover:border-black hover:text-black"
+                                ? "bg-black text-white shadow-lg shadow-black/20"
+                                : "bg-white border border-gray-200 text-gray-600 hover:border-black hover:text-black"
                                 }`}
                         >
                             <FaSliders aria-hidden="true" className={filtersOpen ? "text-white" : "text-gray-400"} />
-                            <span>ตัวกรอง</span>
+                            <span className="hidden sm:inline">ตัวกรอง</span>
                         </button>
 
                         <button
@@ -288,16 +397,6 @@ const Navbar = ({
                                 { id: 'fr', name: 'ฝรั่งเศส (French)' },
                             ]}
                         />
-
-                        <div className="lg:col-span-3 xl:col-span-2">
-                        <FilterInput
-                            label="ชื่อนักแสดง"
-                            icon={FaUser}
-                            value={filters.actor}
-                            onChange={(e) => setFilters((f) => ({ ...f, actor: e.target.value }))}
-                            placeholder="เช่น Tom Cruise"
-                        />
-                        </div>
                     </div>
                 </div>
             </div>
