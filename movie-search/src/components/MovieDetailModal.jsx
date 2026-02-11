@@ -16,7 +16,6 @@ const MovieDetailModal = ({
 }) => {
     const [analysis, setAnalysis] = useState(null);
     const [loading, setLoading] = useState(true);
-    const [analysisError, setAnalysisError] = useState("");
 
     const apiBase =
         import.meta.env.VITE_API_BASE?.replace(/\/+$/, "") ||
@@ -34,11 +33,9 @@ const MovieDetailModal = ({
                 }
                 const data = await res.json();
                 setAnalysis(data);
-                setAnalysisError("");
             } catch (err) {
                 console.error("Analysis Error:", err);
                 setAnalysis(null);
-                setAnalysisError(err?.message === "MODEL_DOWN" ? "MODEL_DOWN" : "FAILED");
             } finally {
                 setLoading(false);
             }
@@ -130,7 +127,7 @@ const MovieDetailModal = ({
 
                         <div className="border-t border-gray-100 pt-8">
                             <h3 className="text-sm font-bold text-black uppercase tracking-widest mb-6 flex items-center gap-2">
-                                <FaChartPie /> สรุปผลวิเคราะห์ความรู้สึก (AI Sentiment)
+                                <FaChartPie /> {hasAnalysisData ? "สรุปผลวิเคราะห์ความรู้สึก (AI Sentiment)" : "ความคิดเห็นจากผู้ชม (Reviews)"}
                             </h3>
 
                             {loading ? (
@@ -170,53 +167,42 @@ const MovieDetailModal = ({
                                         </div>
                                     </div>
 
-                                    {/* TMDB Reviews */}
-                                    {analysis.tmdbReviews && analysis.tmdbReviews.length > 0 && (
-                                        <div className={`grid grid-cols-1 gap-4 ${analysis.tmdbReviews.length > 2
-                                            ? "max-h-60 overflow-y-auto pr-2 custom-scrollbar"
-                                            : ""
-                                            }`}>
-                                            {analysis.tmdbReviews.map((r, i) => (
-                                                <div key={i} className="bg-gray-50 p-5 rounded-lg border border-gray-100">
-                                                    <p className="text-sm text-gray-700 italic mb-2 line-clamp-3 hover:line-clamp-none transition-all">
-                                                        "{r.content}"
-                                                    </p>
-                                                    <div className="text-xs text-gray-400 font-bold uppercase tracking-wider text-right">
-                                                        — {r.author || "User"}
-                                                    </div>
-                                                </div>
-                                            ))}
-                                        </div>
-                                    )}
-
-                                    {/* YouTube Comments */}
-                                    {analysis.youtubeComments?.length > 0 && (
-                                        <div className="mt-6 border-t border-gray-50 pt-6">
-                                            <h4 className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-4 flex items-center gap-2">
-                                                <FaYoutube className="text-black" size={16} /> ความคิดเห็นจาก YouTube
-                                            </h4>
-                                            <ul className="space-y-3 max-h-56 overflow-y-auto pr-2 custom-scrollbar">
-                                                {analysis.youtubeComments.slice(0, 10).map((c, i) => (
-                                                    <li key={i} className="text-sm text-gray-600 border-b border-gray-100 pb-2 last:border-0 hover:bg-gray-50 p-2 rounded transition-colors">
-                                                        <div className="flex flex-col gap-1">
-                                                            <span className="font-bold text-xs text-gray-900">{c.author}:</span>
-                                                            <span className="text-gray-600">{c.text || c.content || ""}</span>
-                                                        </div>
-                                                    </li>
-                                                ))}
-                                            </ul>
-                                        </div>
-                                    )}
                                 </div>
-                            ) : (
-                                <div className="text-center py-8 bg-gray-50 rounded-lg border border-dashed border-gray-200">
-                                    <p className="text-gray-400 text-sm">
-                                        {analysis?.summary === "no model"
-                                            ? "ระบบวิเคราะห์ไม่พร้อมใช้งาน (แสดงเฉพาะความคิดเห็น)"
-                                            : analysisError === "MODEL_DOWN"
-                                                ? "ระบบวิเคราะห์ไม่พร้อมใช้งานชั่วคราว"
-                                                : "ไม่พบข้อมูลการวิเคราะห์"}
-                                    </p>
+                            ) : null}
+
+                            {analysis?.tmdbReviews && analysis.tmdbReviews.length > 0 && (
+                                <div className={`grid grid-cols-1 gap-4 ${analysis.tmdbReviews.length > 2
+                                    ? "max-h-60 overflow-y-auto pr-2 custom-scrollbar"
+                                    : ""
+                                    }`}>
+                                    {analysis.tmdbReviews.map((r, i) => (
+                                        <div key={i} className="bg-gray-50 p-5 rounded-lg border border-gray-100">
+                                            <p className="text-sm text-gray-700 italic mb-2 line-clamp-3 hover:line-clamp-none transition-all">
+                                                "{r.content}"
+                                            </p>
+                                            <div className="text-xs text-gray-400 font-bold uppercase tracking-wider text-right">
+                                                — {r.author || "User"}
+                                            </div>
+                                        </div>
+                                    ))}
+                                </div>
+                            )}
+
+                            {analysis?.youtubeComments?.length > 0 && (
+                                <div className="mt-6 border-t border-gray-50 pt-6">
+                                    <h4 className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-4 flex items-center gap-2">
+                                        <FaYoutube className="text-black" size={16} /> ความคิดเห็นจาก YouTube
+                                    </h4>
+                                    <ul className="space-y-3 max-h-56 overflow-y-auto pr-2 custom-scrollbar">
+                                        {analysis.youtubeComments.slice(0, 10).map((c, i) => (
+                                            <li key={i} className="text-sm text-gray-600 border-b border-gray-100 pb-2 last:border-0 hover:bg-gray-50 p-2 rounded transition-colors">
+                                                <div className="flex flex-col gap-1">
+                                                    <span className="font-bold text-xs text-gray-900">{c.author}:</span>
+                                                    <span className="text-gray-600">{c.text || c.content || ""}</span>
+                                                </div>
+                                            </li>
+                                        ))}
+                                    </ul>
                                 </div>
                             )}
                         </div>
