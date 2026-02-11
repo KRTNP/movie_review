@@ -77,37 +77,37 @@ const MovieDetailModal = ({
 
     return (
         <div
-            className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-white/60 backdrop-blur-md"
+            className="fixed inset-0 z-[100] flex items-center justify-center p-0 md:p-4 bg-white/70 backdrop-blur-md"
             onClick={onClose}
         >
             <div
-                className="bg-white w-full max-w-6xl max-h-[90vh] overflow-hidden shadow-2xl flex flex-col md:flex-row relative border border-gray-200 rounded-none md:rounded-lg"
+                className="bg-white w-full h-[100dvh] md:h-auto max-w-6xl max-h-[100dvh] md:max-h-[90vh] overflow-hidden shadow-none md:shadow-2xl flex flex-col md:flex-row relative border-0 md:border md:border-gray-200 rounded-none md:rounded-lg"
                 onClick={(e) => e.stopPropagation()}
             >
                 <button
                     onClick={onClose}
-                    className="absolute top-4 right-4 z-10 bg-white/80 hover:bg-black hover:text-white text-black p-2 rounded-full transition-all duration-300 shadow-sm"
+                    className="absolute top-3 right-3 md:top-4 md:right-4 z-20 bg-white/90 hover:bg-black hover:text-white text-black p-2 rounded-full transition-all duration-300 shadow-sm"
                 >
                     <FaXmark size={20} />
                 </button>
 
                 {/* Image Section */}
-                <div className="w-full md:w-[45%] lg:w-[40%] h-64 md:h-auto bg-black relative">
+                <div className="w-full md:w-[45%] lg:w-[40%] h-48 sm:h-56 md:h-auto bg-black relative shrink-0">
                     <img
                         src={movie.poster_path ? `https://image.tmdb.org/t/p/w780${movie.poster_path}` : "https://via.placeholder.com/500x750"}
                         alt={movie.title}
-                        className="w-full h-full object-cover opacity-90"
+                        className="w-full h-full object-cover object-top opacity-90"
                     />
                     <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent md:hidden" />
                 </div>
 
                 {/* Content Section */}
-                <div className="w-full md:w-[55%] lg:w-[60%] flex flex-col overflow-y-auto bg-white">
-                    <div className="p-8 md:p-10 lg:p-12">
+                <div className="w-full md:w-[55%] lg:w-[60%] flex flex-col overflow-y-auto overscroll-contain bg-white">
+                    <div className="p-4 sm:p-6 md:p-10 lg:p-12">
 
                         {/* Header */}
                         <div className="mb-8">
-                            <h2 className="text-4xl font-black text-black mb-3 tracking-tight leading-none uppercase">
+                            <h2 className="text-2xl sm:text-3xl lg:text-4xl font-black text-black mb-3 tracking-tight leading-none uppercase">
                                 {movie.title}
                             </h2>
 
@@ -119,7 +119,7 @@ const MovieDetailModal = ({
                                 <span className="flex items-center gap-1.5 text-black">
                                     <FaStar /> {typeof rating === "number" ? rating.toFixed(1) : "-"}
                                 </span>
-                                <div className="flex gap-2 ml-auto">
+                                <div className="flex flex-wrap gap-2 ml-auto">
                                     {movie.genre_ids?.map(id => genreMap[id]).filter(Boolean).slice(0, 3).map(g => (
                                         <span key={g} className="px-2 py-1 border border-gray-200 text-xs rounded uppercase tracking-wider">
                                             {g}
@@ -130,7 +130,7 @@ const MovieDetailModal = ({
                         </div>
 
                         {/* Overview */}
-                        <p className="text-gray-600 leading-relaxed mb-10 text-lg font-light">
+                        <p className="text-gray-600 leading-relaxed mb-8 md:mb-10 text-base sm:text-lg font-light">
                             {movie.overview || "ไม่พบข้อมูลเรื่องย่อ"}
                         </p>
 
@@ -228,10 +228,10 @@ const MovieDetailModal = ({
 
                     {/* Footer Actions */}
                     {showRandomActions && (
-                        <div className="p-6 border-t border-gray-100 bg-gray-50 mt-auto flex justify-end">
+                        <div className="p-4 sm:p-6 border-t border-gray-100 bg-gray-50 mt-auto flex justify-stretch sm:justify-end">
                             <button
                                 onClick={onRandomNext}
-                                className="px-8 py-3 bg-black text-white text-sm font-bold uppercase tracking-widest hover:bg-gray-800 transition shadow-lg"
+                                className="w-full sm:w-auto px-8 py-3 bg-black text-white text-sm font-bold uppercase tracking-widest hover:bg-gray-800 transition shadow-lg"
                             >
                                 สุ่มเรื่องถัดไป
                             </button>
