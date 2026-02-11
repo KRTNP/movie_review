@@ -144,8 +144,8 @@ const Navbar = ({
 
     return (
         <nav className="sticky top-0 z-50 bg-white/90 backdrop-blur-xl border-b border-gray-100 transition-all duration-300">
-            <div className="w-full px-6 py-4">
-                <div className="flex items-center gap-4 flex-wrap justify-between">
+            <div className="w-full px-4 sm:px-6 py-4">
+                <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
 
                     {/* Logo Section */}
                     <div
@@ -182,7 +182,7 @@ const Navbar = ({
                     </div>
 
                     {/* Search Bar with Suggestions */}
-                    <div className="flex-1 max-w-xl relative group" ref={searchRef}>
+                    <div className="w-full lg:flex-1 lg:max-w-xl relative group" ref={searchRef}>
                         <div className="relative flex items-center w-full">
                             {/* Mode Switcher */}
                             <div className="absolute left-1 z-10 flex bg-gray-100 rounded-full p-1">
@@ -275,10 +275,10 @@ const Navbar = ({
                     </div>
 
                     {/* Action Buttons */}
-                    <div className="flex gap-2">
+                    <div className="w-full lg:w-auto flex gap-2">
                         <button
                             onClick={() => onChangeView(view === "model" ? "home" : "model")}
-                            className={`inline-flex items-center gap-2 px-5 py-2.5 rounded-full text-sm font-bold tracking-wide transition-all duration-300 ${view === "model"
+                            className={`flex-1 lg:flex-none inline-flex justify-center items-center gap-2 px-5 py-2.5 rounded-full text-sm font-bold tracking-wide transition-all duration-300 ${view === "model"
                                 ? "bg-black text-white shadow-lg shadow-black/20"
                                 : "bg-white border border-gray-200 text-gray-600 hover:border-black hover:text-black"
                                 }`}
@@ -290,7 +290,7 @@ const Navbar = ({
 
                         <button
                             onClick={onToggleFilters}
-                            className={`inline-flex items-center gap-2 px-5 py-2.5 rounded-full text-sm font-bold tracking-wide transition-all duration-300 ${filtersOpen
+                            className={`flex-1 lg:flex-none inline-flex justify-center items-center gap-2 px-5 py-2.5 rounded-full text-sm font-bold tracking-wide transition-all duration-300 ${filtersOpen
                                 ? "bg-black text-white shadow-lg shadow-black/20"
                                 : "bg-white border border-gray-200 text-gray-600 hover:border-black hover:text-black"
                                 }`}
@@ -301,7 +301,7 @@ const Navbar = ({
 
                         <button
                             onClick={onRandom}
-                            className="inline-flex items-center gap-2 px-5 py-2.5 rounded-full bg-white border border-gray-200 text-gray-900 text-sm font-bold tracking-wide hover:bg-black hover:text-white hover:border-black transition-all duration-300 group"
+                            className="flex-1 lg:flex-none inline-flex justify-center items-center gap-2 px-5 py-2.5 rounded-full bg-white border border-gray-200 text-gray-900 text-sm font-bold tracking-wide hover:bg-black hover:text-white hover:border-black transition-all duration-300 group"
                         >
                             <FaShuffle aria-hidden="true" className="text-gray-400 group-hover:text-white transition-colors" />
                             <span className="hidden sm:inline">สุ่มหนัง</span>
@@ -312,10 +312,10 @@ const Navbar = ({
 
             {/* Filter Panel */}
             <div
-                className={`overflow-hidden transition-all duration-500 ease-in-out border-b border-gray-100 bg-white ${filtersOpen ? "max-h-[500px] opacity-100" : "max-h-0 opacity-0 border-none"
+                className={`overflow-hidden transition-all duration-500 ease-in-out border-b border-gray-100 bg-white ${filtersOpen ? "max-h-[1400px] opacity-100" : "max-h-0 opacity-0 border-none"
                     }`}
             >
-                <div className="px-6 py-8 container mx-auto max-w-[1600px]">
+                <div className="px-4 sm:px-6 py-8 container mx-auto max-w-[1600px]">
                     <div className="flex items-center justify-between mb-6">
                         <h3 className="text-sm font-bold text-black flex items-center gap-2">
                             <FaSliders className="text-black" />
@@ -329,7 +329,7 @@ const Navbar = ({
                         </button>
                     </div>
 
-                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-5">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-6 gap-5">
                         <FilterSelect
                             label="ประเภทหนัง"
                             icon={FaTag}

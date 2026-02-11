@@ -415,8 +415,8 @@ function App() {
             />
 
             {view === "home" ? (
-                <main className="w-full max-w-[1600px] mx-auto px-6 py-8">
-                    <div className="flex items-center justify-between mb-6">
+                <main className="w-full max-w-[1600px] mx-auto px-4 sm:px-6 py-6 sm:py-8">
+                    <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between mb-6">
                         <div>
                             <h1 className="text-2xl md:text-3xl font-black tracking-tight">ค้นหาภาพยนตร์</h1>
                             <p className="text-sm text-gray-500 mt-1">
@@ -440,7 +440,7 @@ function App() {
                         </div>
                     ) : (
                         <>
-                            <section className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-6">
+                            <section className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4 sm:gap-6 [content-visibility:auto]">
                                 {movies.map((movie) => (
                                     <MovieCard
                                         key={movie.id}
@@ -474,11 +474,11 @@ function App() {
                     )}
                 </main>
             ) : (
-                <main className="w-full max-w-[1600px] mx-auto px-6 py-8">
-                    <div className="grid grid-cols-1 xl:grid-cols-[1.4fr_1fr] gap-6">
-                        <section className="bg-white border border-gray-200 rounded-2xl p-6 md:p-8 shadow-sm">
+                <main className="w-full max-w-[1600px] mx-auto px-4 sm:px-6 py-6 sm:py-8">
+                    <div className="grid grid-cols-1 lg:grid-cols-[1.35fr_1fr] gap-6">
+                        <section className="bg-white border border-gray-200 rounded-2xl p-4 sm:p-6 md:p-8 shadow-sm">
                             <div className="flex items-center justify-between mb-6">
-                                <h2 className="text-xl font-black tracking-tight flex items-center gap-2">
+                                <h2 className="text-lg sm:text-xl font-black tracking-tight flex items-center gap-2">
                                     <FaFlask /> ทดสอบโมเดล AI (Model Test)
                                 </h2>
                                 <div className="inline-flex rounded-full border border-gray-200 p-1 bg-gray-50">
@@ -511,7 +511,7 @@ function App() {
                                             value={body}
                                             onChange={(e) => setBody(e.target.value)}
                                             placeholder="เนื้อหา (Body)"
-                                            rows={7}
+                                            rows={6}
                                             className="w-full rounded-xl border border-gray-200 px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-black/10"
                                         />
                                     </>
@@ -520,7 +520,7 @@ function App() {
                                         value={testText}
                                         onChange={(e) => setTestText(e.target.value)}
                                         placeholder="วางข้อความรีวิวที่นี่ เพื่อทดสอบการวิเคราะห์..."
-                                        rows={9}
+                                        rows={8}
                                         className="w-full rounded-xl border border-gray-200 px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-black/10"
                                     />
                                 )}
@@ -604,7 +604,7 @@ function App() {
                             </div>
                         </section>
 
-                        <aside className="bg-white border border-gray-200 rounded-2xl p-6 md:p-7 shadow-sm h-fit">
+                        <aside className="bg-white border border-gray-200 rounded-2xl p-4 sm:p-6 md:p-7 shadow-sm h-fit">
                             <div className="flex items-center justify-between mb-4">
                                 <h3 className="font-black tracking-tight flex items-center gap-2">
                                     <FaBolt /> ตัวอย่างรีวิวจาก TMDB
@@ -624,7 +624,7 @@ function App() {
                             ) : randomReviews.length === 0 ? (
                                 <div className="py-6 text-sm text-gray-500">ไม่พบข้อมูลรีวิว</div>
                             ) : (
-                                <ul className="space-y-4 max-h-[70vh] overflow-y-auto pr-1">
+                                <ul className="space-y-4 max-h-[45vh] sm:max-h-[60vh] lg:max-h-[72vh] overflow-y-auto pr-1">
                                     {randomReviews.map((review) => {
                                         const id = `${review.movieId}-${review.author}`;
                                         return (

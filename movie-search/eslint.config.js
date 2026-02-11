@@ -8,14 +8,7 @@ const require = createRequire(import.meta.url)
 const { configs: jsConfigs } = require('@eslint/js')
 
 export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/postcss.config.js', '**/tailwind.config.js'],
-    languageOptions: {
-      globals: globals.node,
-      sourceType: 'commonjs',
-    },
-  },
+  globalIgnores(['dist', 'postcss.config.js', 'tailwind.config.js']),
   {
     files: ['**/*.{js,jsx}'],
     extends: [

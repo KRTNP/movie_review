@@ -31,7 +31,7 @@ const MovieCard = ({ movie, onClick, genreMap = {} }) => {
                 <img
                     src={imageUrl}
                     alt={movie.title}
-                    className="w-full h-full object-cover transition-transform duration-700 ease-out group-hover:scale-110 grayscale-[20%] group-hover:grayscale-0"
+                    className="w-full h-full object-cover object-top transition-transform duration-700 ease-out group-hover:scale-110 grayscale-[20%] group-hover:grayscale-0"
                 />
 
                 {typeof rating === "number" && (
