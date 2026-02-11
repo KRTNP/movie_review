@@ -1,10 +1,10 @@
-import React, { useState, useEffect, memo } from "react";
+﻿import React, { useState, useEffect, memo } from "react";
 import {
     FaCalendarDays,
     FaStar,
     FaChartPie,
     FaXmark,
-    FaYoutube
+    FaYoutube,
 } from "react-icons/fa6";
 
 const MovieDetailModal = ({
@@ -18,7 +18,6 @@ const MovieDetailModal = ({
     const [loading, setLoading] = useState(true);
     const [analysisError, setAnalysisError] = useState("");
 
-    // ใช้ URL จาก Env หรือ Default เป็น /api
     const apiBase =
         import.meta.env.VITE_API_BASE?.replace(/\/+$/, "") ||
         "/api";
@@ -39,7 +38,7 @@ const MovieDetailModal = ({
             } catch (err) {
                 console.error("Analysis Error:", err);
                 setAnalysis(null);
-                setAnalysisError(err?.message === "MODEL_DOWN" ? "บริการไม่พร้อมใช้งานชั่วคราว" : "การวิเคราะห์ล้มเหลว");
+                setAnalysisError(err?.message === "MODEL_DOWN" ? "MODEL_DOWN" : "FAILED");
             } finally {
                 setLoading(false);
             }
@@ -59,25 +58,25 @@ const MovieDetailModal = ({
     const hasAnalysisData =
         analysis &&
         analysis.summary !== "no data" &&
+        analysis.summary !== "no model" &&
         analysis.stats?.positivePercent !== undefined;
 
-    // ฟังก์ชันช่วยแปลงและเลือกสีของ Badge สรุปผล
     const getSummaryConfig = (summary) => {
         if (!summary) return { label: "-", color: "bg-gray-500" };
         const s = summary.toLowerCase();
 
-        if (s.includes("positive")) return { label: "เชิงบวก (Positive)", color: "bg-green-600" };
-        if (s.includes("negative")) return { label: "เชิงลบ (Negative)", color: "bg-red-600" };
-        if (s.includes("neutral")) return { label: "เป็นกลาง (Neutral)", color: "bg-yellow-500" };
+        if (s.includes("positive")) return { label: "เชิงบวก (POSITIVE)", color: "bg-green-600" };
+        if (s.includes("negative")) return { label: "เชิงลบ (NEGATIVE)", color: "bg-red-600" };
+        if (s.includes("neutral")) return { label: "เป็นกลาง (NEUTRAL)", color: "bg-yellow-500" };
 
-        return { label: summary, color: "bg-black" }; // กรณีอื่นๆ
+        return { label: summary, color: "bg-black" };
     };
 
     const summaryConfig = hasAnalysisData ? getSummaryConfig(analysis.summary) : {};
 
     return (
         <div
-            className="fixed inset-0 z-[100] flex items-center justify-center p-0 md:p-4 bg-white/70 backdrop-blur-md"
+            className="fixed inset-0 z-[100] flex items-center justify-center p-2 sm:p-4 bg-white/70 backdrop-blur-md"
             onClick={onClose}
         >
             <div
@@ -91,8 +90,7 @@ const MovieDetailModal = ({
                     <FaXmark size={20} />
                 </button>
 
-                {/* Image Section */}
-                <div className="w-full md:w-[45%] lg:w-[40%] h-48 sm:h-56 md:h-auto bg-black relative shrink-0">
+                <div className="w-full md:w-[45%] lg:w-[40%] h-56 sm:h-64 md:h-auto bg-black relative shrink-0">
                     <img
                         src={movie.poster_path ? `https://image.tmdb.org/t/p/w780${movie.poster_path}` : "https://via.placeholder.com/500x750"}
                         alt={movie.title}
@@ -101,11 +99,8 @@ const MovieDetailModal = ({
                     <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent md:hidden" />
                 </div>
 
-                {/* Content Section */}
                 <div className="w-full md:w-[55%] lg:w-[60%] flex flex-col overflow-y-auto overscroll-contain bg-white">
                     <div className="p-4 sm:p-6 md:p-10 lg:p-12">
-
-                        {/* Header */}
                         <div className="mb-8">
                             <h2 className="text-2xl sm:text-3xl lg:text-4xl font-black text-black mb-3 tracking-tight leading-none uppercase">
                                 {movie.title}
@@ -129,15 +124,13 @@ const MovieDetailModal = ({
                             </div>
                         </div>
 
-                        {/* Overview */}
                         <p className="text-gray-600 leading-relaxed mb-8 md:mb-10 text-base sm:text-lg font-light">
-                            {movie.overview || "ไม่พบข้อมูลเรื่องย่อ"}
+                            {movie.overview || "ไม่มีข้อมูลเรื่องย่อ"}
                         </p>
 
-                        {/* Analysis Section */}
                         <div className="border-t border-gray-100 pt-8">
                             <h3 className="text-sm font-bold text-black uppercase tracking-widest mb-6 flex items-center gap-2">
-                                <FaChartPie /> ผลการวิเคราะห์ความรู้สึกโดย AI
+                                <FaChartPie /> สรุปผลวิเคราะห์ความรู้สึก (AI Sentiment)
                             </h3>
 
                             {loading ? (
@@ -147,7 +140,6 @@ const MovieDetailModal = ({
                                 </div>
                             ) : hasAnalysisData ? (
                                 <div className="space-y-8">
-                                    {/* Sentiment Summary Badge */}
                                     <div className="flex items-center justify-between bg-gray-50 border border-gray-100 rounded-lg px-4 py-3">
                                         <span className="text-xs font-bold uppercase tracking-widest text-gray-500">
                                             สรุปผล (Summary)
@@ -157,7 +149,6 @@ const MovieDetailModal = ({
                                         </span>
                                     </div>
 
-                                    {/* Sentiment Bar Graph */}
                                     <div className="space-y-2">
                                         <div className="flex justify-between text-xs font-bold uppercase tracking-wider text-gray-500">
                                             <span>เชิงบวก (Positive)</span>
@@ -182,7 +173,7 @@ const MovieDetailModal = ({
                                     {/* TMDB Reviews */}
                                     {analysis.tmdbReviews && analysis.tmdbReviews.length > 0 && (
                                         <div className={`grid grid-cols-1 gap-4 ${analysis.tmdbReviews.length > 2
-                                            ? "max-h-60 overflow-y-auto pr-2" // เพิ่ม Scrollbar หากมีรีวิวมากกว่า 2
+                                            ? "max-h-60 overflow-y-auto pr-2 custom-scrollbar"
                                             : ""
                                             }`}>
                                             {analysis.tmdbReviews.map((r, i) => (
@@ -216,17 +207,21 @@ const MovieDetailModal = ({
                                             </ul>
                                         </div>
                                     )}
-
                                 </div>
                             ) : (
                                 <div className="text-center py-8 bg-gray-50 rounded-lg border border-dashed border-gray-200">
-                                    <p className="text-gray-400 text-sm">{analysisError || "ไม่พบข้อมูลการวิเคราะห์"}</p>
+                                    <p className="text-gray-400 text-sm">
+                                        {analysis?.summary === "no model"
+                                            ? "ระบบวิเคราะห์ไม่พร้อมใช้งาน (แสดงเฉพาะความคิดเห็น)"
+                                            : analysisError === "MODEL_DOWN"
+                                                ? "ระบบวิเคราะห์ไม่พร้อมใช้งานชั่วคราว"
+                                                : "ไม่พบข้อมูลการวิเคราะห์"}
+                                    </p>
                                 </div>
                             )}
                         </div>
                     </div>
 
-                    {/* Footer Actions */}
                     {showRandomActions && (
                         <div className="p-4 sm:p-6 border-t border-gray-100 bg-gray-50 mt-auto flex justify-stretch sm:justify-end">
                             <button
